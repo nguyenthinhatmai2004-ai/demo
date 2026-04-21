@@ -64,7 +64,7 @@ class StrategyEvaluator:
         """Tiêu chí SEPA (Mark Minervini): Tìm điểm mua chính xác (Stage 2 Trend)"""
         try:
             stock = self.vnstock.stock(symbol=ticker.upper(), source='KBS')
-            df = stock.quote.history(length=250, resolution='1D')
+            df = stock.quote.history(length=250)
             if df is None or len(df) < 200: return {"status": "INCOMPLETE_DATA"}
 
             close = df.iloc[-1]['close']

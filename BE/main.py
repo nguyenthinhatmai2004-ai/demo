@@ -111,7 +111,7 @@ class VNStockTerminalApp:
             try:
                 # Sử dụng vnstock v3 API với KBS source
                 stock = self.stock.stock(symbol=ticker.upper(), source='KBS')
-                df = stock.quote.history(length=2, resolution='1D')
+                df = stock.quote.history(length=2)
                 
                 if df is None or df.empty:
                     return {"ticker": ticker.upper(), "price": 0, "change_percent": 0, "error": "No data found"}
@@ -137,10 +137,21 @@ class VNStockTerminalApp:
         async def get_history(ticker: str):
             try:
                 stock = self.stock.stock(symbol=ticker.upper(), source='KBS')
-                df = stock.quote.history(start='2024-01-01', resolution='1D')
+                df = stock.quote.history(start='2024-01-01')
                 if df is None or df.empty:
                     return []
-                return [{"time": str(r['time']).split(' ')[0], "open": r['open'], "high": r['high'], "low": r['low'], "close": r['close'], "volume": int(r['volume'])} for _, r in df.iterrows()]
+                # Nhân 1000 ngay tại BE để Frontend nhận giá trị tuyệt đối (VD: 75000)
+                return [
+                    {
+                        "time": str(r['time']).split(' ')[0], 
+                        "open": r['open'] * 1000, 
+                        "high": r['high'] * 1000, 
+                        "low": r['low'] * 1000, 
+                        "close": r['close'] * 1000, 
+                        "volume": int(r['volume'])
+                    } 
+                    for _, r in df.iterrows()
+                ]
             except Exception as e:
                 logger.error(f"Error fetching history for {ticker}: {e}")
                 return []

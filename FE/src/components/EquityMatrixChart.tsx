@@ -170,16 +170,16 @@ const EquityMatrixChart: React.FC<EquityMatrixChartProps> = ({ ticker }) => {
 
     const priceData = chartData.map(d => ({
       time: d.time,
-      open: d.open * 1000,
-      high: d.high * 1000,
-      low: d.low * 1000,
-      close: d.close * 1000,
+      open: d.open,
+      high: d.high,
+      low: d.low,
+      close: d.close,
     }));
 
     const volumeData = chartData.map(d => ({
       time: d.time,
       value: d.volume,
-      color: d.close >= d.open ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+      color: d.close >= d.open ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)',
     }));
 
     // Mock Equity Curve
