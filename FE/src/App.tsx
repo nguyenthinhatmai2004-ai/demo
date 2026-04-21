@@ -121,14 +121,30 @@ const App: React.FC = () => {
 
         {/* BOTTOM TICKER TAPE */}
         <footer className="h-10 bg-black border-t border-slate-800 flex items-center px-10 overflow-hidden shrink-0">
-           <div className="flex items-center gap-6 whitespace-nowrap animate-marquee">
+           <div className="flex items-center gap-12 whitespace-nowrap animate-marquee">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="flex gap-10">
-                   <span className="text-[10px] font-bold text-slate-600 tracking-widest uppercase">
-                     FPT: <span className="text-emerald-500">135.2 (+2.4%)</span> • SSI: <span className="text-emerald-500">38.5 (+1.2%)</span> • HPG: <span className="text-rose-500">30.1 (-0.5%)</span> • VCB: <span className="text-emerald-500">92.4 (+0.1%)</span> • DGC: <span className="text-emerald-500">112.5 (+4.5%)</span>
-                   </span>
+                <div key={i} className="flex gap-12 items-center">
+                   {tickerTape.length > 0 ? tickerTape.map((item) => (
+                     <div key={item.ticker} className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{item.ticker}:</span>
+                        <span className={`text-[10px] font-bold tabular-nums ${item.change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                            {(item.price * 1000).toLocaleString()} ({item.change >= 0 ? '+' : ''}{item.change}%)
+                        </span>
+                     </div>
+                   )) : (
+                     <span className="text-[9px] font-bold text-slate-700 uppercase animate-pulse">Syncing Global Market Data...</span>
+                   )}
                 </div>
               ))}
+           </div>
+        </footer>
+      </main>
+    </div>
+  );
+};
+
+export default App;
+))}
            </div>
         </footer>
       </main>

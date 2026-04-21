@@ -156,26 +156,23 @@ class VNStockTerminalApp:
                 logger.error(f"Error fetching history for {ticker}: {e}")
                 return []
 
-        @self.app.get("/api/market/intraday/{ticker}")
-        async def get_intraday(ticker: str):
-            try:
-                stock = self.stock.stock(symbol=ticker.upper(), source='KBS')
-                df = stock.quote.intraday()
-                if df is None or df.empty:
-                    return []
-                result = []
-                for _, r in df.iterrows():
-                    t = str(r.get('time', ''))
-                    if ' ' in t: t = t.split(' ')[1][:5]
-                    result.append({
-                        "time": t,
-                        "price": float(r.get('price', r.get('close', 0)) * 1000),
-                        "volume": int(r.get('volume', 0))
-                    })
-                return result
-            except Exception as e:
-                logger.error(f"Error fetching intraday for {ticker}: {e}")
-                return []
+        @self.app.get("/api/market/ticker-tape")
+        async def get_ticker_tape():
+            tickers = ["FPT", "SSI", "HPG", "VCB", "DGC", "VNM", "TCB", "MWG", "PNJ", "VIC"]
+            result = []
+            for t in tickers:
+                try:
+                    stock = self.stock.stock(symbol=t, source='KBS')
+                    df = stock.quote.history(length=2)
+                    if df is not None and len(df) >= 2:
+                        latest = df.iloc[-1]
+                        prev = df.iloc[-2]
+                        price = float(latest['close'])
+                        change = round(((latest['close'] - prev['close']) / prev['close']) * 100, 2)
+                        result.append({"ticker": t, "price": price, "change": change})
+                except Exception as e:
+                    logger.error(f"Ticker tape error for {t}: {e}")
+            return result
 
         # --- News Endpoints ---
 
