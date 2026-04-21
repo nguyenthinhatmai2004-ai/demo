@@ -558,8 +558,8 @@ class VNStockTerminalApp:
                         if i % 50 == 0:
                             logger.info(f"Progress: {i}/{len(market_tickers)} tickers scanned.")
                         
-                        # Delay rất ngắn để quét nhanh nhưng không bị ban
-                        await asyncio.sleep(0.3) 
+                        # Delay để quét chậm lại tránh bị ban (60 req/min limit)
+                        await asyncio.sleep(2.0) 
                     except Exception:
                         continue
                         

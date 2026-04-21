@@ -13,6 +13,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'analyst' | 'investment' | 'trader'>('analyst');
   const [activeTicker, setActiveTicker] = useState('FPT');
   const [balance, setBalance] = useState(1250000000);
+  const [tickerTape, setTickerTape] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchBalance = async () => {
@@ -23,8 +24,24 @@ const App: React.FC = () => {
         console.error("Balance fetch error", e);
       }
     };
+    
+    const fetchTickerTape = async () => {
+        try {
+            const res = await axios.get(`${API_BASE}/market/ticker-tape`);
+            setTickerTape(res.data || []);
+        } catch (e) {
+            console.error("Ticker tape fetch error", e);
+        }
+    };
+
     fetchBalance();
-    const interval = setInterval(fetchBalance, 30000);
+    fetchTickerTape();
+    
+    const interval = setInterval(() => {
+        fetchBalance();
+        fetchTickerTape();
+    }, 60000);
+    
     return () => clearInterval(interval);
   }, []);
 
@@ -136,15 +153,6 @@ const App: React.FC = () => {
                    )}
                 </div>
               ))}
-           </div>
-        </footer>
-      </main>
-    </div>
-  );
-};
-
-export default App;
-))}
            </div>
         </footer>
       </main>

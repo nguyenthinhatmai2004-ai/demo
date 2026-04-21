@@ -124,16 +124,17 @@ const InvestmentPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) =>
          <div className="flex items-center justify-between">
             <div className="flex items-center gap-4 text-blue-400">
                <BarChart3 size={24} />
-               <h3 className="font-black text-xs uppercase tracking-[0.3em]">Equity Matrix Chart: {activeTicker}</h3>
+               <h3 className="font-black text-xs uppercase tracking-[0.3em]">TradingView Pro: {activeTicker}</h3>
             </div>
             <div className="flex items-center gap-2">
                <div className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse"></div>
-               <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Self-Drawing View Engine</span>
+               <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Advanced Technical Engine</span>
             </div>
          </div>
-         <div className="h-[600px] w-full rounded-2xl overflow-hidden border border-slate-800 bg-black/20">
-            <EquityMatrixChart ticker={activeTicker} />
+         <div className="h-[600px] w-full rounded-2xl overflow-hidden border border-slate-800 bg-black">
+            <TradingViewWidget ticker={activeTicker} />
          </div>
+
       </section>
 
       {/* POSITIONS SECTION */}
@@ -164,3 +165,4 @@ const InvestmentPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) =>
 };
 
 export default InvestmentPage;
+e;
