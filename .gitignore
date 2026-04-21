@@ -1,0 +1,41 @@
+# Virtual Environments
+venv/
+BE/venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Node Modules and Build Folders
+node_modules/
+FE/node_modules/
+FE/dist/
+.next/
+out/
+build/
+
+# IDE/Editor
+.vscode/
+.idea/
+.DS_Store
+
+# Logs
+*.log
+FE/frontend.log
+BE/backend*.log
+FE/vite_log.txt
+
+# Databases
+*.db
+*.sqlite3
+BE/vnstock_v3.db
+
+# Environment Secrets
+.env
+BE/.env
+
+# Local Skill Data
+.agents/
+.claude/
