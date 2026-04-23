@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+﻿import React, { useEffect, useRef } from 'react';
 
 interface TradingViewWidgetProps {
   ticker: string;
@@ -6,6 +6,7 @@ interface TradingViewWidgetProps {
 
 const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({ ticker }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const widgetId = useRef(`tv_${Math.random().toString(36).substring(2, 9)}`);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -18,9 +19,11 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({ ticker }) => {
     script.type = 'text/javascript';
     script.async = true;
 
-    // TradingView uses EXCHANGE:TICKER format
-    // For simplicity, we assume HOSE for 3-letter tickers, but it can be adjusted
-    const symbol = ticker.includes(':') ? ticker : `HOSE:${ticker}`;
+    // TradingView VN symbols: HOSE:FPT, HNX:ACB, UPCOM:VGI
+    let symbol = ticker.toUpperCase();
+    if (!symbol.includes(':')) {
+      symbol = `HOSE:${symbol}`;
+    }
 
     script.innerHTML = JSON.stringify({
       "autosize": true,
@@ -30,26 +33,38 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({ ticker }) => {
       "theme": "dark",
       "style": "1",
       "locale": "vi_VN",
+      "toolbar_bg": "#f1f3f6",
+      "enable_publishing": false,
       "allow_symbol_change": true,
+      "save_image": false,
+      "container_id": widgetId.current,
+      "show_popup_button": true,
+      "popup_width": "1000",
+      "popup_height": "650",
       "calendar": false,
       "support_host": "https://www.tradingview.com"
     });
 
+    const widgetDiv = document.createElement('div');
+    widgetDiv.id = widgetId.current;
+    widgetDiv.className = "tradingview-widget-container__widget";
+    widgetDiv.style.height = "100%";
+    widgetDiv.style.width = "100%";
+    
+    containerRef.current.appendChild(widgetDiv);
     containerRef.current.appendChild(script);
+
   }, [ticker]);
 
   return (
     <div className="w-full h-full flex flex-col bg-black">
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-900/50 border-b border-slate-800">
+      <div className="flex items-center justify-between px-4 py-2 bg-slate-900/50 border-b border-slate-800"> 
         <div className="flex items-center gap-2">
           <div className="h-2 w-2 rounded-full bg-blue-500"></div>
           <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">TradingView Official Engine</span>
         </div>
       </div>
-      <div className="flex-1" ref={containerRef}>
-        <div className="tradingview-widget-container" style={{ height: "100%", width: "100%" }}>
-          <div className="tradingview-widget-container__widget" style={{ height: "calc(100% - 32px)", width: "100%" }}></div>
-        </div>
+      <div className="flex-1 overflow-hidden" ref={containerRef}>
       </div>
     </div>
   );

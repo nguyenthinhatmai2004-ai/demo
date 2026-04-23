@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Terminal, Zap, Activity, LineChart, Shield, BarChart2, Clock, Cpu, Play, Square, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { createChart, ColorType } from 'lightweight-charts';
 
-const API_BASE = 'http://localhost:8001/api';
+const API_BASE = 'http://127.0.0.1:8001/api';
 
 const TraderPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   const [logs, setLogs] = useState<string[]>([]);
@@ -16,7 +16,7 @@ const TraderPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
 
   useEffect(() => {
     // Thử dùng localhost cho websocket
-    const ws = new WebSocket('ws://localhost:8001/ws/ai-logs');
+    const ws = new WebSocket('ws://127.0.0.1:8001/ws/ai-logs');
     ws.onmessage = (e) => setLogs(prev => [...prev, e.data].slice(-100));
     return () => ws.close();
   }, []);

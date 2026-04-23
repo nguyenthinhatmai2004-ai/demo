@@ -7,7 +7,7 @@ import AnalystPage from './pages/AnalystPage';
 import InvestmentPage from './pages/InvestmentPage';
 import TraderPage from './pages/TraderPage';
 
-const API_BASE = 'http://localhost:8001/api';
+const API_BASE = 'http://127.0.0.1:8001/api';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'analyst' | 'investment' | 'trader'>('analyst');

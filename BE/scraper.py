@@ -154,11 +154,21 @@ class NewsAggregator:
         return "GENERAL"
 
     def _get_mock_data(self, ticker: str) -> List[Dict]:
-        return [{
-            "title": f"Dòng tiền thông minh đang hướng về {ticker} nhờ kỳ vọng tăng trưởng đột phá.",
-            "link": "#",
-            "source": "Hệ thống Terminal",
-            "category": "MARKET_RADAR",
-            "ticker": ticker,
-            "time": "Vừa xong"
-        }]
+        return [
+            {
+                "title": f"Dòng tiền thông minh đang hướng về {ticker} nhờ kỳ vọng tăng trưởng đột phá.",
+                "link": f"https://vnstocks.com/news/{ticker.lower()}-1",
+                "source": "Terminal Intelligence",
+                "category": "MARKET_RADAR",
+                "ticker": ticker,
+                "time": "Vừa xong"
+            },
+            {
+                "title": f"Phân tích kỹ thuật: {ticker} đang tích lũy trong mô hình chiếc cốc tay cầm.",
+                "link": f"https://vnstocks.com/news/{ticker.lower()}-2",
+                "source": "Chart Bot",
+                "category": "TECHNICAL",
+                "ticker": ticker,
+                "time": "10 phút trước"
+            }
+        ]

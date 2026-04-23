@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Target, Globe, BarChart3, ChevronUp, ChevronDown, Activity, Shield, TrendingUp, Zap, Briefcase } from 'lucide-react';
-import EquityMatrixChart from '../components/EquityMatrixChart';
+import FireAntChart from '../components/FireAntChart';
 
-const API_BASE = 'http://localhost:8001/api';
+const API_BASE = 'http://127.0.0.1:8001/api';
 
 const InvestmentPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   const [strategy, setStrategy] = useState<any>(null);
@@ -44,27 +44,35 @@ const InvestmentPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) =>
       {/* MACRO RADAR & CYCLE MAP */}
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
         {macro && (
-           <div className="xl:col-span-1 terminal-card p-8 flex flex-col gap-6 bg-gradient-to-br from-slate-900 to-black">
-              <div className="flex items-center gap-3 text-blue-400">
-                 <Globe size={20} />
-                 <h3 className="font-black text-[10px] uppercase tracking-[0.2em]">Market Pulse</h3>
-              </div>
-              <div className={`p-6 rounded-2xl border-2 flex flex-col gap-2 ${macro.color === 'emerald' ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/5 border-rose-500/20 text-rose-400'}`}>
-                 <p className="text-[9px] font-black uppercase opacity-60">Cycle Phase</p>
-                 <p className="text-sm font-black uppercase leading-tight">{macro.current_case || macro.phase}</p>
-              </div>
-              <div className="flex flex-col gap-4 mt-2">
-                 <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5 pb-2">Intermarket Watch</h4>
-                 <div className="flex justify-between items-center">
-                    <span className="text-[10px] text-slate-400">DXY Index</span>
-                    <span className="text-xs font-black text-white tabular-nums">{macro.indicators?.dxy_index?.value || '104.2'}</span>
+           <div className="xl:col-span-1 flex flex-col gap-6">
+              <div className="terminal-card p-8 flex flex-col gap-6 bg-gradient-to-br from-slate-900 to-black h-full">
+                 <div className="flex items-center gap-3 text-blue-400">
+                    <Globe size={20} />
+                    <h3 className="font-black text-[10px] uppercase tracking-[0.2em]">Nhịp đập Thị trường</h3>
                  </div>
-                 <div className="flex justify-between items-center">
-                    <span className="text-[10px] text-slate-400">US 10Y Yield</span>
-                    <span className="text-xs font-black text-white tabular-nums">{macro.indicators?.us_10y_yield?.value || '4.25'}%</span>
+                 <div className={`p-6 rounded-2xl border-2 flex flex-col gap-2 ${macro.color === 'emerald' ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/5 border-rose-500/20 text-rose-400'}`}>
+                    <p className="text-[9px] font-black uppercase opacity-60">Giai đoạn Chu kỳ</p>
+                    <p className="text-sm font-black uppercase leading-tight">{macro.current_case || macro.phase}</p>
                  </div>
+                 <div className="flex flex-col gap-4 mt-2 overflow-y-auto custom-scrollbar pr-2">
+                    <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5 pb-2">Chỉ số Chiến lược</h4>
+                    
+                    {Object.entries(macro.indicators || {}).map(([key, ind]: any) => (
+                       <div key={key} className="flex justify-between items-center group cursor-help relative" title={ind.desc}>
+                          <span className="text-[10px] text-slate-400 group-hover:text-slate-200 transition-colors">{ind.label}</span>
+                          <div className="flex items-center gap-2">
+                             <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${
+                                ind.status === 'Good' ? 'bg-emerald-500/10 text-emerald-500' : 
+                                ind.status === 'Caution' ? 'bg-amber-500/10 text-amber-500' : 
+                                'bg-rose-500/10 text-rose-500'
+                             }`}>{ind.status === 'Good' ? 'Tốt' : ind.status === 'Caution' ? 'Cần trọng' : 'Rủi ro'}</span>
+                             <span className="text-xs font-black text-white tabular-nums">{ind.value}{key.includes('yield') || key.includes('growth') || key.includes('cpi') || key.includes('ppi') || key.includes('debt') || key.includes('credit') ? '%' : ''}</span>
+                          </div>
+                       </div>
+                    ))}
+                 </div>
+                 <p className="text-[10px] text-slate-500 font-medium italic leading-relaxed mt-auto border-t border-white/5 pt-4">"{macro.strategy}"</p>
               </div>
-              <p className="text-[10px] text-slate-500 font-medium italic leading-relaxed mt-auto border-t border-white/5 pt-4">"{macro.strategy}"</p>
            </div>
         )}
 
@@ -72,20 +80,20 @@ const InvestmentPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) =>
            <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-3 text-emerald-400">
                  <Target size={20} />
-                 <h3 className="font-black text-[10px] uppercase tracking-[0.2em]">CANSLIM & SEPA Selector</h3>
+                 <h3 className="font-black text-[10px] uppercase tracking-[0.2em]">Bộ lọc Siêu cổ phiếu CANSLIM & SEPA</h3>
               </div>
-              <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-[9px] font-black rounded-lg border border-emerald-500/20">Active Discovery Mode</span>
+              <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-[9px] font-black rounded-lg border border-emerald-500/20">Chế độ Tìm kiếm Chủ động</span>
            </div>
 
            <div className="overflow-x-auto">
               <table className="w-full text-left border-separate border-spacing-y-3">
                  <thead>
                     <tr className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                       <th className="px-4">Ticker</th>
-                       <th className="px-4">CANSLIM Score</th>
-                       <th className="px-4">Technical Setup</th>
-                       <th className="px-4">Verdict</th>
-                       <th className="px-4 text-right">Potential</th>
+                       <th className="px-4">Mã CP</th>
+                       <th className="px-4">Điểm CANSLIM</th>
+                       <th className="px-4">Thiết lập Kỹ thuật</th>
+                       <th className="px-4">Khuyến nghị</th>
+                       <th className="px-4 text-right">Tiềm năng</th>
                     </tr>
                  </thead>
                  <tbody>
@@ -103,10 +111,10 @@ const InvestmentPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) =>
                              </div>
                           </td>
                           <td className="px-4 py-4 bg-slate-900/50 border-y border-slate-800 group-hover:border-blue-500/30 transition-colors">
-                             <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">{s.setup}</span>
+                             <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">{s.setup === 'VCP Breakout' ? 'Phá vỡ VCP' : s.setup === 'Accumulating' ? 'Đang tích lũy' : s.setup}</span>
                           </td>
                           <td className="px-4 py-4 bg-slate-900/50 border-y border-slate-800 group-hover:border-blue-500/30 transition-colors">
-                             <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${s.sepa_verdict?.includes('BUY') ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-500 border border-slate-700'}`}>{s.sepa_verdict}</span>
+                             <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${s.sepa_verdict?.includes('BUY') ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-500 border border-slate-700'}`}>{s.sepa_verdict === 'BUY / LONG' ? 'MUA / NẮM GIỮ' : s.sepa_verdict === 'WATCHLIST' ? 'THEO DÕI' : s.sepa_verdict}</span>
                           </td>
                           <td className="px-4 py-4 bg-slate-900/50 rounded-r-xl border-y border-r border-slate-800 group-hover:border-blue-500/30 transition-colors text-right">
                              <span className="text-xs font-black text-emerald-400">{s.potential}</span>
@@ -124,15 +132,15 @@ const InvestmentPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) =>
          <div className="flex items-center justify-between">
             <div className="flex items-center gap-4 text-blue-400">
                <BarChart3 size={24} />
-               <h3 className="font-black text-xs uppercase tracking-[0.3em]">TradingView Pro: {activeTicker}</h3>
+               <h3 className="font-black text-xs uppercase tracking-[0.3em]">Đồ thị Kỹ thuật FireAnt: {activeTicker}</h3>
             </div>
             <div className="flex items-center gap-2">
-               <div className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse"></div>
+               <div className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse"></div>
                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Advanced Technical Engine</span>
             </div>
          </div>
          <div className="h-[600px] w-full rounded-2xl overflow-hidden border border-slate-800 bg-black">
-            <TradingViewWidget ticker={activeTicker} />
+            <FireAntChart ticker={activeTicker} />
          </div>
 
       </section>
@@ -141,7 +149,7 @@ const InvestmentPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) =>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
          <section className="bg-gray-900/30 rounded-3xl border border-gray-800 p-8 shadow-xl">
             <h3 className="font-bold text-sm uppercase tracking-widest text-blue-400 mb-6 flex items-center gap-2">
-               <Briefcase size={18} /> Danh Mục Hiện Tại
+               <Briefcase size={18} /> Danh mục Hiện tại
             </h3>
             <div className="flex flex-col gap-4">
                {accountData?.positions ? Object.entries(accountData.positions).map(([t, q]: any) => (
@@ -152,10 +160,10 @@ const InvestmentPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) =>
                      </div>
                      <div className="text-right">
                         <p className="text-sm font-black text-emerald-400">+5.2%</p>
-                        <span className="text-[8px] font-black text-slate-600 uppercase">PnL</span>
+                        <span className="text-[8px] font-black text-slate-600 uppercase">Lãi/Lỗ</span>
                      </div>
                   </div>
-               )) : <p className="text-slate-600 italic text-xs">No active positions.</p>}
+               )) : <p className="text-slate-600 italic text-xs">Chưa có vị thế đang mở.</p>}
             </div>
          </section>
       </div>
@@ -165,4 +173,3 @@ const InvestmentPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) =>
 };
 
 export default InvestmentPage;
-e;

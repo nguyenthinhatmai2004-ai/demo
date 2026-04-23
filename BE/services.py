@@ -157,17 +157,19 @@ class MacroEngine:
             # 1. Liên thị trường (Intermarket - Tác động dòng vốn ngoại)
             {"name": "DXY Index", "value": 104.2, "label": "Chỉ số USD (DXY)", "status": "Caution", "desc": "DXY quanh 104. Áp lực lên tỷ giá VND vẫn còn, khối ngoại có xu hướng bán ròng."},
             {"name": "US 10Y Yield", "value": 4.25, "label": "Lợi suất Trái phiếu Mỹ", "status": "Caution", "desc": "Lợi suất 10 năm ở mức 4.25%. Nếu tăng tiếp sẽ gây áp lực lên định giá cổ phiếu toàn cầu."},
-            {"name": "VN 10Y Yield", "value": 2.85, "label": "Lợi suất TP Chính phủ VN", "status": "Good", "desc": "Duy trì mức thấp, cho thấy kỳ vọng lãi suất trong nước vẫn ổn định."},
-
-            # 2. Chính sách tiền tệ (Monetary - Nhật Long TC core)
+            
+            # 2. Chính sách tiền tệ & Đòn bẩy (Monetary & Leverage)
             {"name": "Interest Rate", "value": 4.5, "label": "Lãi suất điều hành", "status": "Good", "desc": "SBV duy trì 4.5%. Môi trường tiền rẻ là 'nhiên liệu' cho chứng khoán."},
-            {"name": "Exchange Rate", "value": 25450, "label": "Tỷ giá USD/VND", "status": "Caution", "desc": "Vượt 25k là ngưỡng nhạy cảm. Cần theo dõi động thái bán USD của SBV."},
-            {"name": "M2 Growth", "value": 10.5, "label": "Cung tiền M2", "status": "Stable", "desc": "Tăng trưởng cung tiền 10.5%, đảm bảo thanh khoản hệ thống không bị thắt chặt."},
-
-            # 3. Macro Nền & Doanh nghiệp
-            {"name": "GDP Growth", "value": 6.5, "label": "Tăng trưởng GDP", "status": "Rising", "desc": "GDP 6.5% cho thấy nội lực kinh tế khỏe mạnh. Doanh nghiệp có nền tảng hồi phục."},
-            {"name": "CPI", "value": 3.2, "label": "Lạm phát (CPI)", "status": "Good", "desc": "Kiểm soát dưới 4%. SBV vẫn còn dư địa nới lỏng nếu cần thiết."},
-            {"name": "Market P/E", "value": 14.2, "label": "P/E Thị trường", "status": "Stable", "desc": "Định giá trung bình. Thị trường đang ở giai đoạn phân hóa mạnh."},
+            {"name": "Credit to GDP", "value": 125.0, "label": "Dư nợ tín dụng / GDP", "status": "Stable", "desc": "Đòn bẩy nền kinh tế ở mức 125%. Tín dụng đang được bơm để hỗ trợ phục hồi sản xuất."},
+            {"name": "Public Debt to GDP", "value": 37.0, "label": "Nợ công / GDP", "status": "Good", "desc": "Nợ công ở mức 37%, thấp hơn ngưỡng an toàn (60%). Dư địa tài khóa dồi dào."},
+            
+            # 3. Lạm phát & Sản xuất (Inflation & Production)
+            {"name": "CPI", "value": 3.9, "label": "Lạm phát (CPI)", "status": "Caution", "desc": "CPI tiệm cận ngưỡng 4%. Cần theo dõi chặt chẽ để dự báo hướng đi của lãi suất."},
+            {"name": "PPI", "value": 2.1, "label": "Chỉ số giá sản xuất (PPI)", "status": "Stable", "desc": "PPI tăng nhẹ 2.1%, cho thấy chi phí đầu vào doanh nghiệp vẫn trong tầm kiểm soát."},
+            
+            # 4. Tăng trưởng (Growth)
+            {"name": "GDP Growth", "value": 6.8, "label": "Tăng trưởng GDP", "status": "Rising", "desc": "GDP dự báo tăng 6.8%. Nền kinh tế đang trong nhịp hồi phục mạnh mẽ."},
+            {"name": "Exchange Rate", "value": 25450, "label": "Tỷ giá USD/VND", "status": "Caution", "desc": "Vượt 25k là ngưỡng nhạy cảm. Cần theo dõi động thái điều tiết của SBV."},
         ]
         
         for ind in indicators:
