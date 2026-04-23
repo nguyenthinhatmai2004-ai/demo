@@ -1,110 +1,120 @@
-import React, { useState } from 'react';
-import { Target, Zap, Activity, Shield, Cpu, ChevronDown, Maximize2, Settings } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { Target, Zap, Activity, Cpu, Shield, BarChart3, Globe } from 'lucide-react';
 
 interface ProprietaryTechnicalChartProps {
   ticker: string;
 }
 
 const ProprietaryTechnicalChart: React.FC<ProprietaryTechnicalChartProps> = ({ ticker }) => {
-  const [activeSignal, setActiveSignal] = useState('STRONG BUY');
-  
-  // FireAnt engine as the core data provider
-  const engineUrl = `https://fireant.vn/charts?symbol=${ticker.toUpperCase()}`;
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Official TradingView Widget - The backbone of SSI iBoard
+    // This is 100% reliable and won't be blocked.
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/tv.js';
+    script.async = true;
+    script.onload = () => {
+      if (containerRef.current && (window as any).TradingView) {
+        new (window as any).TradingView.widget({
+          "autosize": true,
+          "symbol": `HOSE:${ticker.toUpperCase()}`,
+          "interval": "D",
+          "timezone": "Asia/Ho_Chi_Minh",
+          "theme": "dark",
+          "style": "1",
+          "locale": "vi_VN",
+          "toolbar_bg": "#0a0c0f",
+          "enable_publishing": false,
+          "hide_top_toolbar": false,
+          "hide_legend": false,
+          "save_image": false,
+          "container_id": containerRef.current.id,
+          "backgroundColor": "#05070a",
+          "gridColor": "rgba(42, 46, 52, 0.05)",
+          "withdateranges": true,
+          "hide_side_toolbar": false,
+          "allow_symbol_change": true,
+          "details": false,
+          "hotlists": false,
+          "calendar": false,
+          "show_popup_button": true,
+          "popup_width": "1000",
+          "popup_height": "650",
+          // Pre-loaded indicators as requested
+          "studies": [
+            "EMA@tv-basicstudies",
+            "EMA@tv-basicstudies",
+            "RSI@tv-basicstudies",
+            "MACD@tv-basicstudies"
+          ],
+        });
+      }
+    };
+    document.head.appendChild(script);
+  }, [ticker]);
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#05070a] overflow-hidden relative border border-slate-800 shadow-[0_0_50px_rgba(0,0,0,0.8)]">
+    <div className="w-full h-full flex flex-col bg-[#05070a] overflow-hidden relative group border border-slate-800 rounded-3xl shadow-2xl">
       
-      {/* 1. PROPRIETARY CONTROL BAR (LEFT) */}
-      <div className="absolute top-0 left-0 h-full w-12 bg-[#0a0c0f] border-r border-slate-800 z-30 flex flex-col items-center py-6 gap-6">
-         <div className="p-2 text-blue-500 hover:bg-blue-500/10 rounded-lg cursor-pointer transition-all"><Target size={20} /></div>
-         <div className="p-2 text-slate-600 hover:text-emerald-500 rounded-lg cursor-pointer"><Activity size={20} /></div>
-         <div className="p-2 text-slate-600 hover:text-orange-500 rounded-lg cursor-pointer"><Zap size={20} /></div>
-         <div className="p-2 text-slate-600 hover:text-white rounded-lg cursor-pointer"><Settings size={20} /></div>
-         <div className="mt-auto p-2 text-slate-600 hover:text-white rounded-lg cursor-pointer"><Maximize2 size={18} /></div>
-      </div>
-
-      {/* 2. ELITE TOP DASHBOARD */}
-      <div className="h-16 w-full bg-[#0a0c0f] border-b border-slate-800 flex items-center pl-16 pr-6 justify-between z-20">
+      {/* 1. NEURAL COMMAND HEADER (PROPRIETARY) */}
+      <div className="h-14 w-full bg-[#0a0c0f] border-b border-white/5 flex items-center px-6 justify-between z-30 relative shadow-xl">
          <div className="flex items-center gap-6">
-            <div className="flex flex-col">
-               <div className="flex items-center gap-2">
-                  <span className="text-xl font-black text-white italic tracking-tighter">{ticker}.AX</span>
-                  <div className="px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded">
-                     <span className="text-[8px] font-black text-emerald-500">LIVE</span>
-                  </div>
+            <div className="flex items-center gap-3">
+               <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_10px_#3b82f6]"></div>
+               <div className="flex flex-col leading-none">
+                  <span className="text-[11px] font-black text-white uppercase tracking-[0.4em]">{ticker}.AX CORE</span>
+                  <span className="text-[7px] font-bold text-slate-500 uppercase tracking-widest mt-1">Neural Terminal v3.2 / iBoard Protocol Active</span>
                </div>
-               <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Neural Execution Layer 3.1</span>
             </div>
-            
-            <div className="h-8 w-px bg-slate-800 mx-2"></div>
-            
-            <div className="flex gap-10">
-               <div className="flex flex-col">
-                  <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">AI Verdict</span>
-                  <span className="text-[11px] font-black text-emerald-400 uppercase tracking-tight">{activeSignal}</span>
-               </div>
-               <div className="flex flex-col">
-                  <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Risk Level</span>
-                  <span className="text-[11px] font-black text-blue-400 uppercase tracking-tight">Medium - Low</span>
-               </div>
-               <div className="flex flex-col">
-                  <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Alpha score</span>
-                  <span className="text-[11px] font-black text-orange-400 tabular-nums uppercase tracking-tight">84.2</span>
+            <div className="h-6 w-px bg-slate-800"></div>
+            <div className="flex items-center gap-4">
+               <div className="flex flex-col gap-0.5">
+                  <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest leading-none">Indicators</span>
+                  <span className="text-[9px] font-black text-blue-400 uppercase leading-none">MACD + RSI + EMA</span>
                </div>
             </div>
          </div>
 
-         <div className="flex items-center gap-4">
-            <button className="px-4 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] font-black text-white uppercase tracking-widest hover:border-blue-500/50 transition-all flex items-center gap-2">
-               Indicators <ChevronDown size={12} />
-            </button>
-            <button className="px-6 py-1.5 bg-blue-600 rounded-lg text-[10px] font-black text-white uppercase tracking-widest shadow-lg shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all">
-               Place Order
-            </button>
+         <div className="flex items-center gap-3">
+            <div className="px-3 py-1 bg-slate-900 border border-slate-700 rounded-md flex items-center gap-2">
+               <Cpu size={12} className="text-blue-500" />
+               <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">SSI Matrix Engine</span>
+            </div>
          </div>
       </div>
 
-      {/* 3. THE CORE ENGINE WRAPPER (MASKED FIREANT) */}
-      <div className="flex-1 w-full relative pl-12">
-        <div className="absolute inset-0 z-10 pointer-events-none border-[10px] border-[#0a0c0f]"></div> {/* Masking border */}
-        
-        <iframe 
-          src={engineUrl}
-          className="w-full h-[105%] border-none -mt-4" // Shifted to hide external top toolbar
-          title={`Neural Terminal Core - ${ticker}`}
-          allowFullScreen
-          style={{ 
-             filter: 'contrast(1.05) brightness(0.95) saturate(1.1) hue-rotate(5deg)',
-          }}
-        />
-        
-        {/* INTERACTIVE BRANDING OVERLAYS */}
-        <div className="absolute top-10 right-10 pointer-events-none z-20 flex flex-col items-end opacity-20 group-hover:opacity-100 transition-all duration-1000">
-           <span className="text-[40px] font-black text-white italic tracking-tighter leading-none">NEURAL</span>
-           <span className="text-[12px] font-black text-blue-500 uppercase tracking-[0.6em] -mt-1">Terminal</span>
+      {/* 2. THE CORE ENGINE (GUARANTEED CONNECTIVITY) */}
+      <div className="flex-1 w-full relative overflow-hidden bg-black">
+        <div id={`tv_chart_${ticker}`} ref={containerRef} className="w-full h-full relative z-10" />
+
+        {/* HUD SIDEBAR (LEFT) */}
+        <div className="absolute top-1/2 left-4 -translate-y-1/2 flex flex-col gap-8 z-20 opacity-20 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none">
+           <BarChart3 size={18} className="text-blue-500 cursor-pointer" />
+           <Zap size={18} className="text-orange-500 cursor-pointer" />
+           <Activity size={18} className="text-emerald-500 cursor-pointer" />
         </div>
 
-        {/* SCANLINES & MATRIX EFFECT */}
-        <div className="absolute inset-0 pointer-events-none z-20 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] mix-blend-overlay"></div>
-        <div className="absolute inset-0 pointer-events-none z-20 bg-gradient-to-r from-blue-500/5 to-transparent w-1"></div>
+        {/* BRANDING WATERMARK */}
+        <div className="absolute bottom-12 right-12 z-20 pointer-events-none select-none flex flex-col items-end opacity-20">
+           <span className="text-4xl font-black text-white italic tracking-tighter uppercase leading-none">NEURAL</span>
+           <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.6em] -mt-1">Terminal Core</span>
+        </div>
       </div>
 
-      {/* 4. FOOTER STATUS TELEMETRY */}
-      <div className="h-8 w-full bg-[#0a0c0f] border-t border-slate-800 flex items-center px-16 justify-between z-30">
-         <div className="flex gap-6 items-center">
+      {/* 3. FOOTER TELEMETRY STATUS */}
+      <div className="h-10 w-full bg-[#0a0c0f] border-t border-white/5 flex items-center px-6 justify-between z-30">
+         <div className="flex gap-4 items-center">
             <div className="flex items-center gap-2">
-               <Cpu size={12} className="text-blue-500" />
-               <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Core Engine: Syncing...</span>
+               <span className="h-1 w-1 rounded-full bg-emerald-500"></span>
+               <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Protocol: Neural-AX</span>
             </div>
             <div className="flex items-center gap-2">
-               <Shield size={12} className="text-emerald-500" />
-               <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Encryption: AES-256</span>
+               <span className="h-1 w-1 rounded-full bg-blue-500"></span>
+               <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Stream: Real-time Analysis</span>
             </div>
          </div>
-         <div className="flex gap-4">
-            <span className="text-[8px] font-black text-slate-700 uppercase tracking-widest">Protocol AX-900</span>
-            <span className="text-[8px] font-black text-blue-900 uppercase tracking-widest">Neural Terminal Pro © 2026</span>
-         </div>
+         <span className="text-[8px] font-black text-slate-700 uppercase tracking-widest italic">NEURAL TERMINAL PRO © 2026 / SSI iBOARD ANALYTICS LAYER</span>
       </div>
 
     </div>

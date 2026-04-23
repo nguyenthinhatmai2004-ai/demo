@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Newspaper, Activity, BarChart2, Zap, TrendingUp, Shield, Cpu, ChevronRight, Calculator, ExternalLink, PieChart, Target, BarChart3 } from 'lucide-react';
 import ProprietaryFinancialChart from '../components/ProprietaryFinancialChart';
-import TradingViewTechnicalChart from '../components/TradingViewTechnicalChart';
+import ProprietaryTechnicalChart from '../components/ProprietaryTechnicalChart';
 
 const API_BASE = 'http://127.0.0.1:8001/api';
 
@@ -99,7 +99,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
             <div className="flex items-center justify-between px-2">
                <div className="flex items-center gap-4 text-blue-400">
                   <BarChart3 size={24} />
-                  <h3 className="font-black text-xs uppercase tracking-[0.3em]">Hệ thống Kỹ thuật Độc quyền (VSA Engine)</h3>
+                  <h3 className="font-black text-xs uppercase tracking-[0.3em]">Hệ thống Kỹ thuật Độc quyền (Neural HUD)</h3>
                </div>
                <div className="flex items-center gap-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse"></div>
@@ -107,7 +107,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                </div>
             </div>
             <div className="h-[600px] w-full rounded-3xl overflow-hidden border border-slate-800 bg-[#0a0c0f] shadow-2xl relative group">
-               <ProprietaryTechnicalChart ticker={activeTicker} />
+               <ProprietaryTechnicalChart key={activeTicker} ticker={activeTicker} />
             </div>
          </div>
 
@@ -340,7 +340,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                       <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{r.label}</span>
                       <span className="text-[8px] font-bold text-slate-700 uppercase group-hover:text-slate-500">{r.sub}</span>
                     </div>
-                    <span className="text-2xl font-black text-white italic tabular-nums group-hover:text-orange-400 transition-colors">
+                    <span className="text-2xl font-black text-white tabular-nums group-hover:text-orange-400 transition-colors">
                       {r.value}<span className="text-sm ml-0.5 opacity-40">{r.suffix}</span>
                     </span>
                   </div>

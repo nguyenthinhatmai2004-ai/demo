@@ -90,8 +90,9 @@ const InvestmentPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) =>
                  <thead>
                     <tr className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
                        <th className="px-4">Mã CP</th>
-                       <th className="px-4">Điểm CANSLIM</th>
-                       <th className="px-4">Thiết lập Kỹ thuật</th>
+                       <th className="px-4">Chất lượng</th>
+                       <th className="px-4">Giai đoạn & VSA</th>
+                       <th className="px-4">Điểm Mua</th>
                        <th className="px-4">Khuyến nghị</th>
                        <th className="px-4 text-right">Tiềm năng</th>
                     </tr>
@@ -104,17 +105,23 @@ const InvestmentPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) =>
                           </td>
                           <td className="px-4 py-4 bg-slate-900/50 border-y border-slate-800 group-hover:border-blue-500/30 transition-colors">
                              <div className="flex items-center gap-3">
-                                <div className="h-1.5 w-24 bg-slate-800 rounded-full overflow-hidden">
+                                <span className="text-[10px] font-black text-blue-400 w-4">{s.canslim_score}</span>
+                                <div className="h-1 w-16 bg-slate-800 rounded-full overflow-hidden">
                                    <div className="h-full bg-blue-500" style={{ width: `${s.canslim_score}%` }}></div>
                                 </div>
-                                <span className="text-[10px] font-black text-blue-400">{s.canslim_score}</span>
                              </div>
                           </td>
                           <td className="px-4 py-4 bg-slate-900/50 border-y border-slate-800 group-hover:border-blue-500/30 transition-colors">
-                             <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">{s.setup === 'VCP Breakout' ? 'Phá vỡ VCP' : s.setup === 'Accumulating' ? 'Đang tích lũy' : s.setup}</span>
+                             <div className="flex flex-col gap-0.5">
+                                <span className="text-[9px] font-black text-white uppercase tracking-tighter">{s.tech_status}</span>
+                                <span className="text-[8px] font-bold text-slate-500 uppercase italic">{s.vsa_signal}</span>
+                             </div>
                           </td>
                           <td className="px-4 py-4 bg-slate-900/50 border-y border-slate-800 group-hover:border-blue-500/30 transition-colors">
-                             <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${s.sepa_verdict?.includes('BUY') ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-500 border border-slate-700'}`}>{s.sepa_verdict === 'BUY / LONG' ? 'MUA / NẮM GIỮ' : s.sepa_verdict === 'WATCHLIST' ? 'THEO DÕI' : s.sepa_verdict}</span>
+                             <span className="text-[10px] font-black text-orange-400 tabular-nums">{s.entry} ₫</span>
+                          </td>
+                          <td className="px-4 py-4 bg-slate-900/50 border-y border-slate-800 group-hover:border-blue-500/30 transition-colors">
+                             <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${s.sepa_verdict?.includes('BUY') ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-500 border border-slate-700'}`}>{s.sepa_verdict}</span>
                           </td>
                           <td className="px-4 py-4 bg-slate-900/50 rounded-r-xl border-y border-r border-slate-800 group-hover:border-blue-500/30 transition-colors text-right">
                              <span className="text-xs font-black text-emerald-400">{s.potential}</span>
@@ -127,23 +134,30 @@ const InvestmentPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) =>
         </div>
       </div>
 
-      {/* TECHNICAL ANALYSIS HUB */}
-      <section className="terminal-card p-10 flex flex-col gap-8">
-         <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4 text-blue-400">
-               <BarChart3 size={24} />
-               <h3 className="font-black text-xs uppercase tracking-[0.3em]">Đồ thị Kỹ thuật FireAnt: {activeTicker}</h3>
+      {/* TACTICAL MARKET ALERTS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+         <div className="p-6 bg-blue-600/5 border border-blue-500/20 rounded-3xl flex flex-col gap-3">
+            <div className="flex items-center gap-2 text-blue-400">
+               <Zap size={16} />
+               <span className="text-[9px] font-black uppercase tracking-widest">Xác nhận Pocket Pivot</span>
             </div>
-            <div className="flex items-center gap-2">
-               <div className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse"></div>
-               <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Advanced Technical Engine</span>
+            <p className="text-[11px] text-slate-300 font-medium leading-relaxed italic">"FPT đã vượt qua vùng cung 134.5 với khối lượng lớn. Điểm mua Pocket Pivot cực chuẩn trong nền giá Stage 2."</p>
+         </div>
+         <div className="p-6 bg-emerald-600/5 border border-emerald-500/20 rounded-3xl flex flex-col gap-3">
+            <div className="flex items-center gap-2 text-emerald-400">
+               <Shield size={16} />
+               <span className="text-[9px] font-black uppercase tracking-widest">Kiệt cung Xác nhận</span>
             </div>
+            <p className="text-[11px] text-slate-300 font-medium leading-relaxed italic">"HPG xuất hiện 3 phiên No Supply Bar liên tiếp. Khối lượng cạn kiệt cho thấy lực bán đã hoàn toàn biến mất."</p>
          </div>
-         <div className="h-[600px] w-full rounded-2xl overflow-hidden border border-slate-800 bg-black">
-            <FireAntChart ticker={activeTicker} />
+         <div className="p-6 bg-orange-600/5 border border-orange-500/20 rounded-3xl flex flex-col gap-3">
+            <div className="flex items-center gap-2 text-orange-400">
+               <Activity size={16} />
+               <span className="text-[9px] font-black uppercase tracking-widest">VCP Setup</span>
+            </div>
+            <p className="text-[11px] text-slate-300 font-medium leading-relaxed italic">"Dòng thép và chứng khoán đang hình thành mô hình thu hẹp biên độ VCP chặt chẽ. Chờ đợi nhịp Breakout để mở vị thế."</p>
          </div>
-
-      </section>
+      </div>
 
       {/* POSITIONS SECTION */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
