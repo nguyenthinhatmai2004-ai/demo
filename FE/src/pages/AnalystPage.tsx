@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Newspaper, Activity, BarChart2, Zap, TrendingUp, Shield, Cpu, ChevronRight, Calculator, ExternalLink, PieChart, Target, BarChart3 } from 'lucide-react';
 import ProprietaryFinancialChart from '../components/ProprietaryFinancialChart';
-import ProprietaryTechnicalChart from '../components/ProprietaryTechnicalChart';
+import TradingViewTechnicalChart from '../components/TradingViewTechnicalChart';
 
 const API_BASE = 'http://127.0.0.1:8001/api';
 
