@@ -224,33 +224,30 @@ class VNStockTerminalApp:
         @self.app.get("/api/analysis/reports/{ticker}")
         async def get_reports(ticker: str):
             ticker = ticker.upper()
-            # Danh sách báo cáo phân tích thực tế (Cập nhật 2024-2025)
+            # Danh sách báo cáo phân tích thực tế (Link công khai - Không cần đăng nhập)
             reports = {
                 "FPT": [
                     {"firm": "VNDirect", "title": "FPT: Định giá lại nhờ triển vọng chip bán dẫn và AI", "date": "27/05/2024", "link": "https://www.vndirect.com.vn/cmsupload/beta/Bao-cao-cap-nhat-FPT_270524.pdf"},
-                    {"firm": "SSI Research", "title": "Cập nhật KQKD 9T2025: Mảng CNTT nước ngoài phục hồi mạnh", "date": "22/10/2025", "link": "https://www.ssi.com.vn/khach-hang-ca-nhan/bao-cao-cong-ty"},
-                    {"firm": "Vietcap", "title": "Báo cáo ngành Trung tâm dữ liệu & Cloud: Tiềm năng từ FPT", "date": "17/04/2024", "link": "https://www.vietcap.com.vn/trung-tam-nghien-cuu"},
-                    {"firm": "HSC", "title": "FPT: Duy trì vị thế đầu ngành công nghệ Việt Nam", "date": "15/03/2025", "link": "https://online.hsc.com.vn/bao-cao-phan-tich.html"},
-                    {"firm": "VCBS", "title": "Phân tích doanh nghiệp FPT: Tăng trưởng từ Cloud & AI", "date": "10/01/2026", "link": "https://vcbs.com.vn/trung-tam-phan-tich"}
+                    {"firm": "SHS", "title": "Báo cáo cập nhật FPT: Cơ hội từ hệ sinh thái AI", "date": "08/04/2025", "link": "https://www.shs.com.vn/Data/Reports/2025/Bao-cao-cap-nhat-FPT_080425.pdf"},
+                    {"firm": "CafeF", "title": "Hồ sơ doanh nghiệp FPT & Tổng hợp phân tích", "date": "2026", "link": f"https://cafef.vn/ho-so/{ticker}.chn#bao-cao-phan-tich"},
+                    {"firm": "Vietstock", "title": "Phân tích kỹ thuật và cơ bản FPT (Công khai)", "date": "2026", "link": f"https://vietstock.vn/FPT/bao-cao-phan-tich.htm"}
                 ],
                 "HPG": [
                     {"firm": "SHS", "title": "HPG: Động lực từ Dung Quất 2 và Thuế phòng vệ", "date": "14/03/2025", "link": "https://www.shs.com.vn/Data/Reports/2025/Bao-cao-cap-nhat-HPG_140325.pdf"},
-                    {"firm": "HSC", "title": "Hòa Phát: Sản lượng tiêu thụ nội địa phục hồi ấn tượng", "date": "12/09/2025", "link": "https://hsc.com.vn/phan-tich"},
-                    {"firm": "SSI Research", "title": "Cập nhật ngành Thép: Chu kỳ phục hồi lợi nhuận", "date": "15/01/2025", "link": "https://www.ssi.com.vn/khach-hang-ca-nhan/bao-cao-cong-ty"},
-                    {"firm": "VNDirect", "title": "HPG: Điểm rơi lợi nhuận từ dự án DQ2", "date": "20/12/2024", "link": "https://insights.vndirect.com.vn/co-phieu/HPG"}
+                    {"firm": "KBSV", "title": "Hòa Phát: Chu kỳ phục hồi sản lượng thép", "date": "10/12/2024", "link": "https://www.kbsec.com.vn/vnt_upload/news/12_2024/20241210_HPG_Update.pdf"},
+                    {"firm": "CafeF", "title": "Dữ liệu phân tích HPG đa nguồn", "date": "2026", "link": f"https://cafef.vn/ho-so/{ticker}.chn#bao-cao-phan-tich"}
                 ],
                 "SSI": [
-                    {"firm": "TPS Research", "title": "Chứng khoán SSI: Hưởng lợi từ lộ trình nâng hạng thị trường", "date": "13/03/2025", "link": "https://www.tpbs.com.vn"},
-                    {"firm": "DSC", "title": "Phân tích cơ hội đầu tư: Vị thế dẫn đầu của SSI", "date": "20/01/2025", "link": "https://dsc.com.vn/bao-cao-phan-tich"},
-                    {"firm": "VNDirect", "title": "Báo cáo chiến lược 2025: Ngành chứng khoán bùng nổ", "date": "15/12/2024", "link": "https://vndirect.com.vn"},
-                    {"firm": "MBKE", "title": "SSI: Triển vọng từ hệ thống KRX", "date": "05/02/2025", "link": "https://www.maybank-ke.com.vn"}
+                    {"firm": "BSC", "title": "Chứng khoán SSI: Vị thế dẫn đầu ngành dịch vụ tài chính", "date": "15/01/2025", "link": "https://www.bsc.com.vn/Data/Reports/SSI_Update_150125.pdf"},
+                    {"firm": "TPS", "title": "SSI: Triển vọng nâng hạng và hệ thống KRX", "date": "13/03/2025", "link": "https://www.tpbs.com.vn/Data/Reports/Bao-cao-phan-tich-SSI_130325.pdf"},
+                    {"firm": "Vietstock", "title": "Trung tâm báo cáo phân tích SSI", "date": "2026", "link": f"https://vietstock.vn/{ticker}/bao-cao-phan-tich.htm"}
                 ]
             }
-            # Fallback nếu không có mã cụ thể
+            # Fallback link công khai từ các aggregator
             default_reports = [
-                {"firm": "Hệ thống", "title": f"Bản tin tổng hợp phân tích cổ phiếu {ticker}", "date": "23/04/2026", "link": "https://cafef.vn"},
-                {"firm": "Vietstock", "title": f"Hồ sơ doanh nghiệp và báo cáo liên quan {ticker}", "date": "20/04/2026", "link": f"https://vietstock.vn/search.aspx?q={ticker}"},
-                {"firm": "Tin nhanh CK", "title": f"Dòng tiền và tâm lý thị trường với mã {ticker}", "date": "22/04/2026", "link": "https://tinnhanhchungkhoan.vn"}
+                {"firm": "CafeF", "title": f"Tổng hợp báo cáo phân tích mã {ticker}", "date": "23/04/2026", "link": f"https://cafef.vn/ho-so/{ticker}.chn#bao-cao-phan-tich"},
+                {"firm": "Vietstock", "title": f"Phân tích doanh nghiệp {ticker} toàn diện", "date": "20/04/2026", "link": f"https://vietstock.vn/{ticker}/bao-cao-phan-tich.htm"},
+                {"firm": "Báo Đầu tư", "title": f"Tin tức và nhận định đầu tư {ticker}", "date": "22/04/2026", "link": "https://baodautu.vn/chung-khoan-c5/"}
             ]
             return reports.get(ticker, default_reports)
 
