@@ -127,7 +127,7 @@ const App: React.FC = () => {
         <div className="flex-1 overflow-y-auto p-10 custom-scrollbar relative">
            <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-blue-600/5 to-transparent pointer-events-none"></div>
            
-           <div className="max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
+           <div className="max-w-[1600px] mx-auto">
               {activeTab === 'analyst' && <AnalystPage activeTicker={activeTicker} />}
               {activeTab === 'investment' && <InvestmentPage activeTicker={activeTicker} />}
               {activeTab === 'trader' && <TraderPage activeTicker={activeTicker} />}

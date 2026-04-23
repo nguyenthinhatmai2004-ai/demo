@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Newspaper, Activity, BarChart2, Zap, TrendingUp, Shield, Cpu, ChevronRight, Calculator, ExternalLink, PieChart, Target } from 'lucide-react';
+import { Newspaper, Activity, BarChart2, Zap, TrendingUp, Shield, Cpu, ChevronRight, Calculator, ExternalLink, PieChart, Target, BarChart3 } from 'lucide-react';
 import ProprietaryFinancialChart from '../components/ProprietaryFinancialChart';
+import ProprietaryTechnicalChart from '../components/ProprietaryTechnicalChart';
 
 const API_BASE = 'http://127.0.0.1:8001/api';
 
@@ -13,9 +14,9 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   const [prospects, setProspects] = useState<any>(null);
   const [ratios, setRatios] = useState<any>(null);
   const [valuation, setValuation] = useState<any>(null);
+  const [techAnalysis, setTechnicalAnalysis] = useState<any>(null);
 
   const fetchData = async () => {
-    // Tách riêng các call để tránh 1 cái lỗi làm sập cả bảng
     const safeGet = async (url: string, fallback: any) => {
       try {
         const res = await axios.get(url);
@@ -28,58 +29,25 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
 
     const ticker = activeTicker.toUpperCase();
     
-    // Chạy song song nhưng độc lập
-    const [news, spec, biz, reportsRes, prospectsRes, ratiosRes, valuationRes] = await Promise.all([
+    const [news, spec, biz, reportsRes, prospectsRes, ratiosRes, valuationRes, techRes] = await Promise.all([
       safeGet(`${API_BASE}/news/${ticker}`, []),
       safeGet(`${API_BASE}/news/special-events`, []),
       safeGet(`${API_BASE}/news/business-results`, []),
       safeGet(`${API_BASE}/analysis/reports/${ticker}`, []),
       safeGet(`${API_BASE}/analysis/prospects/${ticker}`, null),
       safeGet(`${API_BASE}/finance/ratios/${ticker}`, null),
-      safeGet(`${API_BASE}/finance/valuation/dcf/${ticker}`, null)
+      safeGet(`${API_BASE}/finance/valuation/dcf/${ticker}`, null),
+      safeGet(`${API_BASE}/analysis/technical/${ticker}`, null)
     ]);
 
-    setTickerNews(news.length > 0 ? news : [
-      { title: `Đánh giá triển vọng tăng trưởng ${ticker} năm 2026`, link: "#", source: "Hệ thống", time: "Vừa xong", category: "EARNINGS" },
-      { title: `Phân tích dòng tiền và sức mạnh tài chính của ${ticker}`, link: "#", source: "Hệ thống", time: "1 giờ trước", category: "ANALYSIS" }
-    ]);
-    setSpecialEvents(spec.length > 0 ? spec : [
-      { title: `Thông báo chi trả cổ tức đợt 2/2025 của ${ticker}`, link: "#" },
-      { title: `Kế hoạch phát hành cổ phiếu ESOP cho cán bộ nhân viên`, link: "#" }
-    ]);
-    setBizResults(biz.length > 0 ? biz : [
-      { title: `${ticker} công bố báo cáo tài chính quý 1/2026 với lợi nhuận kỷ lục`, link: "#" },
-      { title: `Biên lợi nhuận gộp của ${ticker} cải thiện mạnh so với cùng kỳ`, link: "#" }
-    ]);
-    setReports(reportsRes.length > 0 ? reportsRes : [
-      { firm: "FIRE-X AI", title: `Báo cáo phân tích chuyên sâu: Cơ hội đầu tư vào ${ticker}`, date: "21/04/2026", target_price: "Premium" },
-      { firm: "Hệ thống", title: `Định giá cổ phiếu ${ticker} dựa trên phương pháp DCF`, date: "20/04/2026", target_price: "Xem chi tiết" }
-    ]);
-    setProspects(prospectsRes || {
-      health_score: 82,
-      growth_pillars: [
-        { title: "Thị phần dẫn đầu", content: `${ticker} duy trì vị thế số 1 trong ngành với lợi thế cạnh tranh bền vững.` },
-        { title: "Số hóa quy trình", content: "Ứng dụng AI vào vận hành giúp tối ưu chi phí và tăng hiệu suất lao động." },
-        { title: "Mở rộng quốc tế", content: "Kế hoạch thâm nhập các thị trường mới đầy tiềm năng trong khu vực." }
-      ],
-      strategic_catalysts: [
-        "Chính sách vĩ mô hỗ trợ phục hồi sản xuất kinh doanh",
-        "Dòng tiền tổ chức bắt đầu quay trở lại mua ròng",
-        "Kết quả kinh doanh đột biến trong các quý tới"
-      ],
-      risk_assessment: [
-        "Biến động giá nguyên vật liệu đầu vào",
-        "Rủi ro tỷ giá ảnh hưởng đến chi phí tài chính"
-      ]
-    });
-    setRatios(ratiosRes || {
-      pe: 14.5,
-      pb: 1.8,
-      roe: 22.5,
-      margin: 18.2,
-      debt_equity: 0.45
-    });
+    setTickerNews(news.length > 0 ? news : []);
+    setSpecialEvents(spec.length > 0 ? spec : []);
+    setBizResults(biz.length > 0 ? biz : []);
+    setReports(reportsRes);
+    setProspects(prospectsRes);
+    setRatios(ratiosRes);
     setValuation(valuationRes);
+    setTechnicalAnalysis(techRes);
   };
 
   useEffect(() => {
@@ -98,9 +66,9 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   };
 
   return (
-    <div className="flex flex-col gap-12 max-w-[1600px] mx-auto animate-in fade-in duration-700">
+    <div className="flex flex-col gap-10 max-w-[1600px] mx-auto">
       
-      {/* HEADER: ELITE IDENTITY */}
+      {/* HEADER & TOP STATS */}
       <div className="flex flex-col md:flex-row items-end justify-between border-b-2 border-slate-800 pb-8 gap-6">
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-4">
@@ -123,6 +91,88 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
           </div>
         </div>
       </div>
+
+      {/* SECTION 0: NEURAL TECHNICAL CORE (SIDE-BY-SIDE) */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+         {/* CHART (LEFT 75%) */}
+         <div className="lg:col-span-3 flex flex-col gap-6">
+            <div className="flex items-center justify-between px-2">
+               <div className="flex items-center gap-4 text-blue-400">
+                  <BarChart3 size={24} />
+                  <h3 className="font-black text-xs uppercase tracking-[0.3em]">Hệ thống Kỹ thuật Độc quyền (VSA Engine)</h3>
+               </div>
+               <div className="flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse"></div>
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">High-Performance Neural Core</span>
+               </div>
+            </div>
+            <div className="h-[600px] w-full rounded-3xl overflow-hidden border border-slate-800 bg-[#0a0c0f] shadow-2xl relative group">
+               <ProprietaryTechnicalChart ticker={activeTicker} />
+            </div>
+         </div>
+
+         {/* TECHNICAL DIAGNOSIS (RIGHT 25%) */}
+         <div className="lg:col-span-1 flex flex-col gap-6">
+            <div className="flex items-center gap-3 text-emerald-400 px-2">
+               <Cpu size={20} />
+               <h3 className="font-black text-[10px] uppercase tracking-[0.3em]">Chẩn đoán Kỹ thuật AI</h3>
+            </div>
+            
+            <div className="flex-1 bg-gradient-to-br from-slate-900 to-black rounded-3xl border border-slate-800 p-8 flex flex-col gap-8 shadow-2xl relative overflow-hidden">
+               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-3xl rounded-full"></div>
+
+               {/* Stage Indicator */}
+               <div className="flex flex-col gap-2">
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">Giai đoạn Cổ phiếu</span>
+                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
+                     <p className="text-sm font-black text-emerald-400 uppercase tracking-tighter leading-tight">
+                        {techAnalysis?.stage || 'Đang phân tích...'}
+                     </p>
+                  </div>
+               </div>
+
+               {/* Buy/Sell Pressure */}
+               <div className="flex flex-col gap-3">
+                  <div className="flex justify-between items-end">
+                     <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">Áp lực Cung - Cầu</span>
+                     <span className="text-[10px] font-black text-white tabular-nums">{techAnalysis?.order_flow?.buy || 50}% / {techAnalysis?.order_flow?.sell || 50}%</span>
+                  </div>
+                  <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden flex shadow-inner">
+                     <div className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] transition-all duration-1000" style={{ width: `${techAnalysis?.order_flow?.buy || 50}%` }}></div>
+                     <div className="h-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)] transition-all duration-1000" style={{ width: `${techAnalysis?.order_flow?.sell || 50}%` }}></div>
+                  </div>
+               </div>
+
+               {/* VSA Signals */}
+               <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1">
+                     <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Tín hiệu VSA</span>
+                     <p className="text-[11px] font-bold text-slate-200 italic leading-snug">"{techAnalysis?.vsa_signal || 'Checking supply bars...'}"</p>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                     <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Trạng thái Cung</span>
+                     <p className="text-[11px] font-bold text-slate-400 leading-snug">{techAnalysis?.supply_demand || 'Analyzing liquidity absorption...'}</p>
+                  </div>
+               </div>
+
+               {/* Recommendation */}
+               <div className="mt-auto flex flex-col gap-4 border-t border-white/5 pt-6">
+                  <div className="flex flex-col gap-1">
+                     <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest leading-none">Khuyến nghị Chiến thuật</span>
+                     <p className="text-xl font-black text-white italic tracking-tighter uppercase leading-none mt-1">
+                        {techAnalysis?.verdict || 'WATCHLIST'}
+                     </p>
+                  </div>
+                  <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl">
+                     <p className="text-[10px] text-slate-400 font-medium leading-relaxed italic">
+                        "{techAnalysis?.reason || 'Hệ thống đang quét các điểm Pivot và Pocket Pivot...'}"
+                     </p>
+                  </div>
+               </div>
+            </div>
+         </div>
+      </div>
+
 
       {/* SECTION 1: CORE STRATEGIC MATRIX & DCF */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
@@ -269,7 +319,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
             </div>
          </div>
 
-         {/* RIGHT: QUANTITATIVE SNAPSHOT & SIMPLIZE CHART */}
+         {/* RIGHT: QUANTITATIVE SNAPSHOT & PROPRIETARY FINANCIAL DASHBOARD */}
          <div className="lg:col-span-4 flex flex-col gap-10">
             {/* FINANCE SCORECARD */}
             <div className="bg-white/[0.02] border border-slate-800 rounded-3xl p-8 flex flex-col gap-8 shadow-xl">
@@ -348,7 +398,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
             </div>
          </div>
 
-         {/* SIDEBAR: RESEARCH & EVENTS */}
+         {/* SIDEBAR: RESEARCH & REPORTS */}
          <div className="lg:col-span-5 grid grid-cols-1 md:grid-cols-2 gap-8 lg:flex lg:flex-col">
             
             {/* RESEARCH REPORTS */}
@@ -365,7 +415,6 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                     rel="noopener noreferrer"
                     className="p-6 bg-slate-900/40 rounded-2xl border border-slate-800 group hover:border-orange-500/40 hover:bg-orange-500/[0.02] transition-all flex flex-col gap-3 relative overflow-hidden"
                   >
-                    {/* Visual cue for link */}
                     <div className="absolute top-2 right-4 opacity-20 group-hover:opacity-100 transition-opacity">
                       <ExternalLink size={12} className="text-orange-500" />
                     </div>

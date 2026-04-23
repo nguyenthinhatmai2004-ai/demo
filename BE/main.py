@@ -87,17 +87,45 @@ class VNStockTerminalApp:
         # --- MOCK MARKET DATA ---
         @self.app.get("/api/market/ticker-tape")
         async def get_ticker_tape():
-            tickers = ["FPT", "SSI", "HPG", "VCB", "DGC", "VNM", "TCB", "MWG", "PNJ", "VIC"]
-            return [{"ticker": t, "price": random.uniform(30, 150), "change": random.uniform(-3, 5)} for t in tickers]
+            # Cập nhật giá cơ sở sát thực tế (Đơn vị: nghìn đồng)
+            base_prices = {
+                "FPT": 135.2, "SSI": 38.1, "HPG": 28.5, "VCB": 92.4, "DGC": 115.0,
+                "VNM": 68.2, "TCB": 45.3, "MWG": 58.6, "PNJ": 95.0, "VIC": 42.1
+            }
+            return [{"ticker": t, "price": base_prices.get(t, 50.0) + random.uniform(-0.5, 0.5), "change": random.uniform(-1.5, 2.5)} for t in base_prices.keys()]
 
         @self.app.get("/api/market/quote/{ticker}")
         async def get_quote(ticker: str):
-            return {"ticker": ticker.upper(), "price": random.uniform(30, 150)*1000, "change_percent": random.uniform(-2, 3), "volume": random.randint(100000, 2000000)}
+            ticker = ticker.upper()
+            base_prices = {"FPT": 135.2, "SSI": 38.1, "HPG": 28.5, "VCB": 92.4}
+            price = base_prices.get(ticker, 50.0) * 1000
+            return {"ticker": ticker, "price": price + random.uniform(-500, 500), "change_percent": random.uniform(-2, 3), "volume": random.randint(100000, 2000000)}
 
         @self.app.get("/api/market/history/{ticker}")
         async def get_history(ticker: str):
-            base = 100000
-            return [{"time": f"2024-04-{i:02d}", "open": base, "high": base+1000, "low": base-500, "close": base+200, "volume": 500000} for i in range(1, 20)]
+            ticker = ticker.upper()
+            base_prices = {"FPT": 135.2, "SSI": 38.1, "HPG": 28.5, "VCB": 92.4}
+            base = base_prices.get(ticker, 50.0)
+            
+            history = []
+            current_date = datetime.now()
+            for i in range(60, 0, -1):
+                date_str = (current_date - timedelta(days=i)).strftime("%Y-%m-%d")
+                # Giả lập nến Nhật chuẩn
+                open_p = base + random.uniform(-2, 2)
+                close_p = open_p + random.uniform(-3, 4)
+                high_p = max(open_p, close_p) + random.uniform(0, 1.5)
+                low_p = min(open_p, close_p) - random.uniform(0, 1.5)
+                history.append({
+                    "time": date_str,
+                    "open": round(open_p, 1),
+                    "high": round(high_p, 1),
+                    "low": round(low_p, 1),
+                    "close": round(close_p, 1),
+                    "volume": random.randint(500000, 5000000)
+                })
+                base = close_p # Di chuyển giá cơ sở cho ngày tiếp theo
+            return history
 
         # --- NEWS ---
         @self.app.get("/api/news/{ticker}")
@@ -218,8 +246,52 @@ class VNStockTerminalApp:
         @self.app.get("/api/account/balance")
         async def get_balance(): return {"balance": 1250000000}
 
-        @self.app.get("/api/account/positions")
-        async def get_positions(): return {"positions": {"FPT": 5000, "SSI": 10000}}
+        @self.app.get("/api/analysis/technical/{ticker}")
+        async def get_technical_analysis(ticker: str):
+            ticker = ticker.upper()
+            # Hệ thống phân tích VSA & Stage Analysis (Theo tài liệu chuyên sâu)
+            analysis = {
+                "FPT": {
+                    "stage": "Giai đoạn 2 (Uptrend)",
+                    "status": "Dòng tiền bùng nổ",
+                    "vsa_signal": "Nến nhấn chìm tăng trưởng với Volume > 150% TB 20 phiên",
+                    "supply_demand": "Cạn cung (Exhausted Supply) ở vùng nền 132, lực cầu chủ động hấp thụ hoàn toàn",
+                    "order_flow": {"buy": 65, "sell": 35},
+                    "pivot_point": 134.5,
+                    "verdict": "MUA / GIA TĂNG TỶ TRỌNG",
+                    "reason": "Cổ phiếu đã thoát khỏi vùng tích lũy sideway 3 tháng. Xuất hiện các phiên Pocket Pivot cực chuẩn."
+                },
+                "HPG": {
+                    "stage": "Giai đoạn 1 (Tích lũy)",
+                    "status": "Kiệt cung / Sideway",
+                    "vsa_signal": "No Supply Bar xuất hiện liên tục, biên độ giá thu hẹp (VCP)",
+                    "supply_demand": "Lực bán yếu dần, đang chờ đợi dòng tiền xác nhận phá vỡ kháng cự",
+                    "order_flow": {"buy": 52, "sell": 48},
+                    "pivot_point": 29.2,
+                    "verdict": "THEO DÕI / MUA THĂM DÒ",
+                    "reason": "Đang ở cuối mô hình tích lũy. Khối lượng cực thấp là dấu hiệu tốt cho một đợt bùng nổ sắp tới."
+                },
+                "SSI": {
+                    "stage": "Giai đoạn 2 (Uptrend)",
+                    "status": "Hấp thụ đỉnh",
+                    "vsa_signal": "Test cung thành công (Spring), giá đang giữ trên các đường EMA quan trọng",
+                    "supply_demand": "Lực mua chủ động áp đảo ở các vùng giá thấp",
+                    "order_flow": {"buy": 58, "sell": 42},
+                    "pivot_point": 37.8,
+                    "verdict": "NẮM GIỮ / MUA KHI RE-TEST",
+                    "reason": "Xác nhận xu hướng tăng trung hạn. Ưu tiên giải ngân khi giá quay về kiểm tra lại vùng Pivot."
+                }
+            }
+            return analysis.get(ticker, {
+                "stage": "Giai đoạn 1 / 3",
+                "status": "Chưa rõ xu hướng",
+                "vsa_signal": "Dữ liệu trung tính",
+                "supply_demand": "Cung cầu cân bằng",
+                "order_flow": {"buy": 50, "sell": 50},
+                "pivot_point": 0,
+                "verdict": "THEO DÕI",
+                "reason": "Cần thêm tín hiệu xác nhận từ khối lượng và biến động giá."
+            })
 
         @self.app.get("/api/analysis/reports/{ticker}")
         async def get_reports(ticker: str):
