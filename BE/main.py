@@ -162,6 +162,36 @@ class VNStockTerminalApp:
                 base = max(close_p, 0.1)
             return history
 
+        @self.app.get("/api/market/quote/{ticker}")
+        async def get_realtime_quote(ticker: str):
+            ticker = ticker.upper()
+            try:
+                for src in ['KBS', 'VCI']:
+                    try:
+                        q = Quote(symbol=ticker, source=src)
+                        # Lấy 2 phiên gần nhất để tính change %
+                        df = q.history(length='2M', interval='1D') 
+                        if not df.empty and len(df) >= 2:
+                            df = df.sort_values(by='time', ascending=True)
+                            latest = df.iloc[-1]
+                            prev = df.iloc[-2]
+                            price = float(latest['close'])
+                            change = float(latest['close'] - prev['close'])
+                            pct_change = round((change / prev['close']) * 100, 2)
+                            return {
+                                "ticker": ticker,
+                                "price": price,
+                                "change": pct_change,
+                                "abs_change": round(change * 1000, 0), # Quy đổi ra đồng
+                                "volume": int(latest['volume']),
+                                "time": str(latest['time'])
+                            }
+                    except: continue
+                return {"ticker": ticker, "price": 0.0, "change": 0.0, "volume": 0}
+            except Exception as e:
+                logger.error(f"Quote Error: {e}")
+                return {"ticker": ticker, "price": 0.0, "change": 0.0, "volume": 0}
+
         # --- NEWS ---
         @self.app.get("/api/news/{ticker_or_cat}")
         async def get_news(ticker_or_cat: str):

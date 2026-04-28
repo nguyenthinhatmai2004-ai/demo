@@ -15,6 +15,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   const [ratios, setRatios] = useState<any>(null);
   const [valuation, setValuation] = useState<any>(null);
   const [techAnalysis, setTechnicalAnalysis] = useState<any>(null);
+  const [realtimeQuote, setRealtimeQuote] = useState<any>(null);
 
   const fetchData = async () => {
     const safeGet = async (url: string, fallback: any) => {
@@ -29,7 +30,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
 
     const ticker = activeTicker.toUpperCase();
     
-    const [news, spec, biz, reportsRes, prospectsRes, ratiosRes, valuationRes, techRes] = await Promise.all([
+    const [news, spec, biz, reportsRes, prospectsRes, ratiosRes, valuationRes, techRes, quoteRes] = await Promise.all([
       safeGet(`${API_BASE}/news/${ticker}`, []),
       safeGet(`${API_BASE}/news/special-events`, []),
       safeGet(`${API_BASE}/news/business-results`, []),
@@ -37,7 +38,8 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
       safeGet(`${API_BASE}/analysis/prospects/${ticker}`, null),
       safeGet(`${API_BASE}/finance/ratios/${ticker}`, null),
       safeGet(`${API_BASE}/finance/valuation/dcf/${ticker}`, null),
-      safeGet(`${API_BASE}/analysis/technical/${ticker}`, null)
+      safeGet(`${API_BASE}/analysis/technical/${ticker}`, null),
+      safeGet(`${API_BASE}/market/quote/${ticker}`, null)
     ]);
 
     setTickerNews(news.length > 0 ? news : []);
@@ -48,6 +50,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
     setRatios(ratiosRes);
     setValuation(valuationRes);
     setTechnicalAnalysis(techRes);
+    setRealtimeQuote(quoteRes);
   };
 
   useEffect(() => {
@@ -85,9 +88,17 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
             <span className="text-4xl font-black text-emerald-400 tabular-nums italic leading-none">{prospects?.health_score || '--'}</span>
           </div>
           <div className="h-12 w-px bg-slate-800"></div>
-          <div className="flex flex-col gap-1 text-right">
+          <div className="flex flex-col gap-1 text-right min-w-[120px]">
             <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Giá Hiện tại</span>
-            <span className="text-2xl font-black text-white tabular-nums">{(valuation?.current_price || 0).toLocaleString()}<span className="text-xs ml-1 opacity-50 text-slate-400 font-bold">₫</span></span>
+            <div className="flex items-center justify-end gap-3">
+               <span className={`text-xs font-black px-1.5 py-0.5 rounded ${ (realtimeQuote?.change || 0) >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500' }`}>
+                  {(realtimeQuote?.change || 0) > 0 ? '+' : ''}{realtimeQuote?.change || '0.00'}%
+               </span>
+               <span className="text-4xl font-black text-white tabular-nums tracking-tighter">
+                  {(realtimeQuote?.price || 0).toLocaleString()}
+                  <span className="text-xs ml-1 opacity-50 text-slate-400 font-bold uppercase">vnd</span>
+               </span>
+            </div>
           </div>
         </div>
       </div>
