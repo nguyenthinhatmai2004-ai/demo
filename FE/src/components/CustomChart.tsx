@@ -177,8 +177,17 @@ const CustomChart: React.FC<CustomChartProps> = ({ ticker }) => {
     ema20Ref.current?.setData(ema20Data);
     ema50Ref.current?.setData(ema50Data);
     
-    chartRef.current?.timeScale().fitContent();
-  }, [fullData]);
+    if (timeframe === 'ALL' && candleData.length > 200) {
+      const lastBar = candleData[candleData.length - 1].time;
+      const firstVisibleBar = candleData[candleData.length - 200].time;
+      chartRef.current?.timeScale().setVisibleRange({
+        from: firstVisibleBar as any,
+        to: lastBar as any,
+      });
+    } else {
+      chartRef.current?.timeScale().fitContent();
+    }
+  }, [fullData, timeframe]);
 
   return (
     <div className="w-full h-full relative group">

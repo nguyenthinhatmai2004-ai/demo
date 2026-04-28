@@ -136,7 +136,17 @@ const ProprietaryTechnicalChart: React.FC<ProprietaryTechnicalChartProps> = ({ t
           rsiSeries.setData(calculateRSI(candleData, 14));
           macdSeries.setData(calculateMACD(candleData));
           
-          chart.timeScale().fitContent();
+          // Focus on the last 200 bars for better visibility, but allow scrolling back
+          if (candleData.length > 200) {
+            const lastBar = candleData[candleData.length - 1].time;
+            const firstVisibleBar = candleData[candleData.length - 200].time;
+            chart.timeScale().setVisibleRange({
+              from: firstVisibleBar as any,
+              to: lastBar as any,
+            });
+          } else {
+            chart.timeScale().fitContent();
+          }
         }
       } catch (e) {
         console.error("Neural Graphics Engine Error:", e);

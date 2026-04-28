@@ -76,7 +76,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
             <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.5em]">Hệ thống Phân tích Chuyên sâu</span>
           </div>
           <h1 className="text-7xl font-black text-white uppercase italic tracking-tighter leading-none">
-            {activeTicker}<span className="text-blue-600">.</span>VN
+            {activeTicker}
           </h1>
         </div>
         <div className="flex gap-8 items-center bg-slate-900/50 p-6 rounded-2xl border border-slate-800 shadow-2xl">
