@@ -208,12 +208,40 @@ class VNStockTerminalApp:
         async def get_ratios(ticker: str):
             ticker = ticker.upper()
             ratios = {
-                "FPT": {"pe": 22.4, "pb": 5.8, "roe": 28.5, "margin": 14.2, "debt_equity": 0.42, "eps": 6050},
-                "SSI": {"pe": 18.2, "pb": 2.1, "roe": 14.5, "margin": 32.8, "debt_equity": 1.25, "eps": 2100},
-                "HPG": {"pe": 16.5, "pb": 1.7, "roe": 11.8, "margin": 8.5, "debt_equity": 0.62, "eps": 1750},
-                "VCB": {"pe": 14.8, "pb": 2.8, "roe": 21.2, "margin": 42.5, "debt_equity": 0.15, "eps": 6250}
+                "FPT": {"pe": 22.4, "pb": 5.8, "roe": 28.5, "margin": 14.2, "debt_equity": 0.42, "eps": 6050, "status": {"pe": "warning", "roe": "good", "margin": "good", "debt_equity": "good"}},
+                "SSI": {"pe": 18.2, "pb": 2.1, "roe": 14.5, "margin": 32.8, "debt_equity": 1.25, "eps": 2100, "status": {"pe": "neutral", "roe": "good", "margin": "good", "debt_equity": "warning"}},
+                "HPG": {"pe": 16.5, "pb": 1.7, "roe": 11.8, "margin": 8.5, "debt_equity": 0.62, "eps": 1750, "status": {"pe": "good", "roe": "neutral", "margin": "warning", "debt_equity": "good"}},
+                "VCB": {"pe": 14.8, "pb": 2.8, "roe": 21.2, "margin": 42.5, "debt_equity": 0.15, "eps": 6250, "status": {"pe": "good", "roe": "good", "margin": "good", "debt_equity": "good"}}
             }
-            return ratios.get(ticker, {"pe": 15.0, "pb": 1.5, "roe": 15.0, "margin": 15.0, "debt_equity": 0.5, "eps": 2000})
+            default_ratio = {"pe": 15.0, "pb": 1.5, "roe": 15.0, "margin": 15.0, "debt_equity": 0.5, "eps": 2000, "status": {"pe": "neutral", "roe": "neutral", "margin": "neutral", "debt_equity": "good"}}
+            return ratios.get(ticker, default_ratio)
+
+        @self.app.get("/api/market/scanner")
+        async def get_market_scanner():
+            # Trả về danh sách cổ phiếu tiềm năng dựa trên tăng trưởng cơ bản và phân tích kỹ thuật (đầu trend tăng)
+            return [
+                {
+                    "ticker": "FPT",
+                    "reason": "Dẫn sóng ngành Công nghệ. Tăng trưởng EPS >20%. Technical: Giai đoạn 2 (Đẩy giá) xác nhận dòng tiền.",
+                    "entry_zone": "132.0 - 135.0",
+                    "target": "168.0",
+                    "risk": "Thấp"
+                },
+                {
+                    "ticker": "SSI",
+                    "reason": "Hưởng lợi KRX & Nâng hạng. Định giá P/B hợp lý. Technical: Pocket Pivot từ nền tảng chặt chẽ.",
+                    "entry_zone": "37.0 - 38.0",
+                    "target": "45.0",
+                    "risk": "Trung bình"
+                },
+                {
+                    "ticker": "DGC",
+                    "reason": "Hưởng lợi giá Phốt pho vàng phục hồi. Hàng tồn kho giá rẻ. Technical: Mới bứt phá khỏi vùng MA50.",
+                    "entry_zone": "115.0 - 118.0",
+                    "target": "140.0",
+                    "risk": "Trung bình"
+                }
+            ]
 
         @self.app.get("/api/finance/valuation/dcf/{ticker}")
         async def get_dcf_valuation(ticker: str):

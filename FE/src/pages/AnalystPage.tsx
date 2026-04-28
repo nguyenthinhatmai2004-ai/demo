@@ -20,6 +20,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   const [valuation, setValuation] = useState<any>(null);
   const [techAnalysis, setTechnicalAnalysis] = useState<any>(null);
   const [realtimeQuote, setRealtimeQuote] = useState<any>(null);
+  const [marketScanner, setMarketScanner] = useState<any[]>([]);
   const [activeSection, setActiveSection] = useState('overview');
 
   const fetchData = async () => {
@@ -35,7 +36,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
 
     const ticker = activeTicker.toUpperCase();
     
-    const [news, spec, reportsRes, prospectsRes, ratiosRes, valuationRes, techRes, quoteRes] = await Promise.all([
+    const [news, spec, reportsRes, prospectsRes, ratiosRes, valuationRes, techRes, quoteRes, scannerRes] = await Promise.all([
       safeGet(`${API_BASE}/news/${ticker}`, []),
       safeGet(`${API_BASE}/news/special-events`, []),
       safeGet(`${API_BASE}/analysis/reports/${ticker}`, []),
@@ -43,7 +44,8 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
       safeGet(`${API_BASE}/finance/ratios/${ticker}`, null),
       safeGet(`${API_BASE}/finance/valuation/dcf/${ticker}`, null),
       safeGet(`${API_BASE}/analysis/technical/${ticker}`, null),
-      safeGet(`${API_BASE}/market/quote/${ticker}`, null)
+      safeGet(`${API_BASE}/market/quote/${ticker}`, null),
+      safeGet(`${API_BASE}/market/scanner`, [])
     ]);
 
     setTickerNews(news);
@@ -54,6 +56,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
     setValuation(valuationRes);
     setTechnicalAnalysis(techRes);
     setRealtimeQuote(quoteRes);
+    setMarketScanner(scannerRes);
   };
 
   useEffect(() => {
@@ -120,6 +123,38 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col gap-12">
         
+        {/* MARKET SCANNER RECOMMENDATION BOX */}
+        {marketScanner && marketScanner.length > 0 && (
+           <div className="bg-gradient-to-r from-emerald-900/40 to-blue-900/40 border border-emerald-500/30 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 blur-3xl rounded-full -mt-20 -mr-20 pointer-events-none"></div>
+              <div className="flex items-center gap-3 text-emerald-400 mb-6">
+                 <Zap size={20} className="animate-pulse" />
+                 <h3 className="text-sm font-black uppercase tracking-[0.2em]">Market Scanner: Top Cổ Phiếu Khuyến Nghị Mua (HOSE, HNX, UPCOM)</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+                 {marketScanner.map((stock: any, index: number) => (
+                    <div key={index} className="bg-black/40 border border-emerald-500/20 rounded-2xl p-5 hover:border-emerald-400/50 transition-colors">
+                       <div className="flex justify-between items-center mb-3">
+                          <span className="text-2xl font-black text-white italic">{stock.ticker}</span>
+                          <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-[10px] font-black rounded uppercase">Mua Mới</span>
+                       </div>
+                       <p className="text-[11px] text-slate-300 mb-4 h-16 line-clamp-3">"{stock.reason}"</p>
+                       <div className="flex justify-between items-end border-t border-emerald-500/10 pt-3">
+                          <div className="flex flex-col">
+                             <span className="text-[9px] text-slate-500 uppercase font-bold tracking-widest">Entry</span>
+                             <span className="text-xs font-black text-emerald-400">{stock.entry_zone}</span>
+                          </div>
+                          <div className="flex flex-col text-right">
+                             <span className="text-[9px] text-slate-500 uppercase font-bold tracking-widest">Target</span>
+                             <span className="text-sm font-black text-white">{stock.target}</span>
+                          </div>
+                       </div>
+                    </div>
+                 ))}
+              </div>
+           </div>
+        )}
+
         {/* SECTION 1: HEADER & QUICK DASHBOARD */}
         <header id="overview" className="flex flex-col gap-8">
            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border-b border-slate-800 pb-8">
@@ -275,21 +310,34 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
 
               <div className="lg:col-span-4 flex flex-col gap-4">
                  {[
-                    { label: 'P/E Ratio', value: ratios?.pe, sub: 'Trung bình ngành: 14.2x' },
-                    { label: 'ROE (%)', value: ratios?.roe, sub: 'Khả năng sinh lời vượt trội' },
-                    { label: 'Net Margin (%)', value: ratios?.margin, sub: 'Biên lợi nhuận gộp cải thiện' },
-                    { label: 'D/E Ratio', value: ratios?.debt_equity, sub: 'Đòn bẩy an toàn' },
-                 ].map(r => (
-                    <div key={r.label} className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 hover:border-emerald-500/30 transition-all group">
-                       <div className="flex justify-between items-start">
-                          <div className="flex flex-col">
-                             <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{r.label}</span>
-                             <span className="text-[8px] font-bold text-slate-700 uppercase group-hover:text-slate-500">{r.sub}</span>
+                    { label: 'P/E Ratio', value: ratios?.pe, sub: 'Trung bình ngành: 14.2x', status: ratios?.status?.pe },
+                    { label: 'ROE (%)', value: ratios?.roe, sub: 'Khả năng sinh lời vượt trội', status: ratios?.status?.roe },
+                    { label: 'Net Margin (%)', value: ratios?.margin, sub: 'Biên lợi nhuận gộp cải thiện', status: ratios?.status?.margin },
+                    { label: 'D/E Ratio', value: ratios?.debt_equity, sub: 'Đòn bẩy an toàn', status: ratios?.status?.debt_equity },
+                 ].map(r => {
+                    let colorClass = 'text-slate-400 group-hover:text-blue-400';
+                    let borderClass = 'hover:border-blue-500/30';
+                    
+                    if (r.status === 'good') {
+                       colorClass = 'text-emerald-500 group-hover:text-emerald-400';
+                       borderClass = 'border-emerald-500/20 hover:border-emerald-500/50 bg-emerald-500/5';
+                    } else if (r.status === 'warning') {
+                       colorClass = 'text-rose-500 group-hover:text-rose-400';
+                       borderClass = 'border-rose-500/20 hover:border-rose-500/50 bg-rose-500/5';
+                    }
+
+                    return (
+                       <div key={r.label} className={`bg-slate-900/40 border border-slate-800 rounded-2xl p-6 transition-all group ${borderClass}`}>
+                          <div className="flex justify-between items-start">
+                             <div className="flex flex-col">
+                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{r.label}</span>
+                                <span className="text-[8px] font-bold text-slate-700 uppercase group-hover:text-slate-500">{r.sub}</span>
+                             </div>
+                             <span className={`text-2xl font-black tabular-nums transition-colors ${colorClass}`}>{r.value}</span>
                           </div>
-                          <span className="text-2xl font-black text-white tabular-nums group-hover:text-emerald-400">{r.value}</span>
                        </div>
-                    </div>
-                 ))}
+                    );
+                 })}
                  <div className="mt-auto p-6 bg-blue-600/5 border border-blue-500/10 rounded-2xl">
                     <p className="text-[11px] font-bold text-slate-400 italic leading-relaxed">
                        "Nhận định của Analyst: Doanh nghiệp duy trì chất lượng tài sản tốt và dòng tiền ổn định, đảm bảo khả năng chi trả cổ tức cao."
