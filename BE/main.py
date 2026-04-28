@@ -383,59 +383,115 @@ class VNStockTerminalApp:
         @self.app.get("/api/analysis/prospects/{ticker}")
         async def get_prospects(ticker: str):
             ticker = ticker.upper()
+            
+            # Giả lập dữ liệu Consensus & Target Price chuyên nghiệp
+            # Trong thực tế, dữ liệu này sẽ được cào hoặc tính toán từ các báo cáo CTCK
             catalysts = {
                 "FPT": {
+                    "company_name": "Công ty Cổ phần FPT",
+                    "exchange": "HOSE",
+                    "industry": "Công nghệ thông tin",
                     "health_score": 92,
-                    "growth_pillars": [
-                        {"title": "Bán dẫn & AI", "content": "Hợp tác NVIDIA xây dựng AI Factory."},
-                        {"title": "Chuyển đổi số", "content": "Thị trường Mỹ & Nhật tăng trưởng >30%."},
-                        {"title": "Backlog", "content": "Hợp đồng ký mới đạt 1 tỷ USD."}
+                    "recommendation": "MUA",
+                    "target_price": 168000,
+                    "upside": 24.3,
+                    "risk_level": "Thấp",
+                    "confidence_score": 85,
+                    "holding_period": "12 Tháng",
+                    "scores": {
+                        "fundamental": 95,
+                        "technical": 82,
+                        "momentum": 88,
+                        "risk": 90
+                    },
+                    "executive_summary": [
+                        "Dẫn đầu làn sóng AI và Bán dẫn tại Việt Nam thông qua hợp tác chiến lược với NVIDIA.",
+                        "Doanh thu chuyển đổi số duy trì đà tăng trưởng mạnh mẽ trên 30% tại thị trường Nhật Bản và Mỹ.",
+                        "Biên lợi nhuận cải thiện nhờ tối ưu hóa chi phí và tăng tỷ trọng mảng dịch vụ phần mềm.",
+                        "Nền tảng tài chính cực kỳ lành mạnh với lượng tiền mặt lớn và nợ vay thấp.",
+                        "Catalyst chính: Khai trương AI Factory vào Q3/2026 và các hợp đồng tỷ đô mới."
                     ],
-                    "strategic_catalysts": ["AI Factory Q3/2026", "Giáo dục mở rộng", "Làn sóng AI"],
-                    "risk_assessment": ["Thiếu nhân sự IT", "Tỷ giá JPY"]
+                    "growth_pillars": [
+                        {"title": "Bán dẫn & AI", "content": "Xây dựng hệ sinh thái AI toàn diện từ hạ tầng đến ứng dụng."},
+                        {"title": "Thị trường Toàn cầu", "content": "Mở rộng dấu ấn tại thị trường EU và Singapore."},
+                        {"title": "Giáo dục FPT", "content": "Tăng trưởng số lượng người học đảm bảo nguồn nhân lực dài hạn."}
+                    ],
+                    "strategic_catalysts": ["AI Factory 2026", "Nâng hạng thị trường", "Cổ tức tiền mặt"],
+                    "risk_assessment": [
+                        {"title": "Tỷ giá JPY/VND", "impact": "Medium", "content": "Biến động tỷ giá ảnh hưởng doanh thu từ thị trường Nhật."},
+                        {"title": "Nhân lực IT", "impact": "High", "content": "Cạnh tranh gay gắt về nguồn cung nhân sự chất lượng cao."}
+                    ],
+                    "consensus": {
+                        "buy": 12, "hold": 2, "sell": 0,
+                        "avg_target": 165500,
+                        "max_target": 180000,
+                        "min_target": 155000
+                    }
                 },
                 "HPG": {
+                    "company_name": "Tập đoàn Hòa Phát",
+                    "exchange": "HOSE",
+                    "industry": "Thép & Vật liệu xây dựng",
                     "health_score": 88,
-                    "growth_pillars": [
-                        {"title": "Dung Quất 2", "content": "Giai đoạn 1 đi vào hoạt động giúp tăng 60% công suất HRC."},
-                        {"title": "Thị trường Xuất khẩu", "content": "Mở rộng thị trường EU và Mỹ với tiêu chuẩn xanh."},
-                        {"title": "Hệ sinh thái Thép", "content": "Tối ưu hóa chuỗi giá trị từ quặng sắt đến container."}
+                    "recommendation": "KHẢ QUAN",
+                    "target_price": 38500,
+                    "upside": 35.1,
+                    "risk_level": "Trung bình",
+                    "confidence_score": 78,
+                    "holding_period": "6-12 Tháng",
+                    "scores": {"fundamental": 85, "technical": 75, "momentum": 70, "risk": 80},
+                    "executive_summary": [
+                        "Dự án Dung Quất 2 là động lực tăng trưởng chính trong giai đoạn 2025-2027.",
+                        "Chi phí sản xuất tối ưu nhất khu vực nhờ quy trình khép kín hiện đại.",
+                        "Hưởng lợi từ chu kỳ phục hồi của thị trường Bất động sản và Đầu tư công.",
+                        "Rủi ro chính đến từ biến động giá nguyên liệu đầu vào và nhu cầu thép thế giới."
                     ],
-                    "strategic_catalysts": ["Dung Quất 2 Q1/2025", "Giá thép thế giới phục hồi", "Giải ngân đầu tư công"],
-                    "risk_assessment": ["Giá nguyên liệu quặng sắt", "Biến động tỷ giá USD"]
-                },
-                "SSI": {
-                    "health_score": 85,
                     "growth_pillars": [
-                        {"title": "Nâng hạng Thị trường", "content": "Hưởng lợi lớn nhất khi thị trường VN được nâng hạng lên Emerging Markets."},
-                        {"title": "Hệ thống KRX", "content": "Triển khai KRX giúp tăng thanh khoản và các sản phẩm mới."},
-                        {"title": "Thị phần Môi giới", "content": "Duy trì vị thế dẫn đầu trong nhóm khách hàng tổ chức."}
+                        {"title": "Dung Quất 2", "content": "Tăng 60% công suất HRC khi đi vào hoạt động."},
+                        {"title": "Thép Xanh", "content": "Đáp ứng tiêu chuẩn CBAM để xuất khẩu vào EU."},
+                        {"title": "Container", "content": "Tối ưu hóa hệ sinh thái sản xuất thép."}
                     ],
-                    "strategic_catalysts": ["Vận hành KRX", "Lãi suất giảm", "Dòng vốn ngoại quay lại"],
-                    "risk_assessment": ["Thanh khoản thị trường sụt giảm", "Cạnh tranh phí giao dịch"]
-                },
-                "VCB": {
-                    "health_score": 95,
-                    "growth_pillars": [
-                        {"title": "Chất lượng Tài sản", "content": "Tỷ lệ nợ xấu (NPL) thấp nhất hệ thống ngân hàng."},
-                        {"title": "Phát hành riêng lẻ", "content": "Kế hoạch phát hành cho cổ đông ngoại giúp tăng vốn điều lệ."},
-                        {"title": "Bancassurance", "content": "Đẩy mạnh doanh thu phí từ bảo hiểm và dịch vụ số."}
+                    "strategic_catalysts": ["Vận hành DQ2", "Giá HRC phục hồi", "Lãi suất giảm"],
+                    "risk_assessment": [
+                        {"title": "Giá Quặng sắt", "impact": "High", "content": "Nguyên liệu chiếm tỷ trọng lớn trong giá thành."},
+                        {"title": "BĐS đóng băng", "impact": "Medium", "content": "Nhu cầu tiêu thụ thép xây dựng nội địa giảm."}
                     ],
-                    "strategic_catalysts": ["Phát hành riêng lẻ 6.5%", "Lợi nhuận tỷ đô", "Dẫn đầu chuyển đổi số"],
-                    "risk_assessment": ["Nợ xấu tiềm ẩn ngành BĐS", "Biên lãi thuần (NIM) thu hẹp"]
+                    "consensus": {
+                        "buy": 15, "hold": 4, "sell": 1,
+                        "avg_target": 36800,
+                        "max_target": 42000,
+                        "min_target": 29500
+                    }
                 }
             }
             
-            # Default response for other tickers to avoid empty sections
+            # Default response
             default_data = {
-                "health_score": 78,
-                "growth_pillars": [
-                    {"title": f"Vị thế Ngành {ticker}", "content": "Duy trì thị phần ổn định và nền tảng tài chính lành mạnh."},
-                    {"title": "Chuyển đổi số", "content": "Tăng cường ứng dụng công nghệ để tối ưu hóa quy trình vận hành."},
-                    {"title": "Tối ưu Chi phí", "content": "Cải thiện biên lợi nhuận thông qua quản lý chi phí chặt chẽ."}
+                "company_name": f"Doanh nghiệp {ticker}",
+                "exchange": "HOSE",
+                "industry": "Đang cập nhật",
+                "health_score": 75,
+                "recommendation": "TRUNG LẬP",
+                "target_price": 0,
+                "upside": 0,
+                "risk_level": "Trung bình",
+                "confidence_score": 70,
+                "holding_period": "Theo dõi",
+                "scores": {"fundamental": 70, "technical": 70, "momentum": 65, "risk": 75},
+                "executive_summary": [
+                    f"Cổ phiếu {ticker} đang trong giai đoạn tích lũy và chờ đợi tín hiệu dòng tiền.",
+                    "Vận động giá tương đối ổn định so với chỉ số chung VN-Index.",
+                    "Cần quan sát thêm kết quả kinh doanh quý tới để xác nhận luận điểm tăng trưởng."
                 ],
-                "strategic_catalysts": ["Kết quả kinh doanh quý tới", "Dòng tiền thông minh", "Tín hiệu kỹ thuật tích cực"],
-                "risk_assessment": ["Biến động kinh tế vĩ mô", "Cạnh tranh trong ngành"]
+                "growth_pillars": [
+                    {"title": "Vị thế Ngành", "content": "Duy trì thị phần trong bối cảnh cạnh tranh."},
+                    {"title": "Tối ưu vận hành", "content": "Áp dụng công nghệ giảm chi phí quản lý."}
+                ],
+                "strategic_catalysts": ["KQKD Quý tới", "Dòng tiền ngoại"],
+                "risk_assessment": [
+                    {"title": "Kinh tế vĩ mô", "impact": "Medium", "content": "Lạm phát và lãi suất ảnh hưởng chi phí vốn."}
+                ],
+                "consensus": {"buy": 5, "hold": 3, "sell": 1, "avg_target": 0, "max_target": 0, "min_target": 0}
             }
             
             return catalysts.get(ticker, default_data)

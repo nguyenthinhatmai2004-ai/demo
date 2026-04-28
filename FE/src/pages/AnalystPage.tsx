@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Newspaper, Activity, BarChart2, Zap, TrendingUp, Shield, Cpu, ChevronRight, Calculator, ExternalLink, PieChart, Target, BarChart3 } from 'lucide-react';
+import { 
+  Newspaper, Activity, BarChart2, Zap, TrendingUp, Shield, Cpu, 
+  ChevronRight, Calculator, ExternalLink, PieChart, Target, 
+  BarChart3, Award, AlertTriangle, Clock, ThumbsUp, Layers, 
+  FileText, Briefcase, Globe, Info, Download, Copy, Plus
+} from 'lucide-react';
 import ProprietaryFinancialChart from '../components/ProprietaryFinancialChart';
 import ProprietaryTechnicalChart from '../components/ProprietaryTechnicalChart';
 
@@ -9,13 +14,13 @@ const API_BASE = 'http://127.0.0.1:8001/api';
 const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   const [tickerNews, setTickerNews] = useState<any[]>([]);
   const [specialEvents, setSpecialEvents] = useState<any[]>([]);
-  const [bizResults, setBizResults] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
   const [prospects, setProspects] = useState<any>(null);
   const [ratios, setRatios] = useState<any>(null);
   const [valuation, setValuation] = useState<any>(null);
   const [techAnalysis, setTechnicalAnalysis] = useState<any>(null);
   const [realtimeQuote, setRealtimeQuote] = useState<any>(null);
+  const [activeSection, setActiveSection] = useState('overview');
 
   const fetchData = async () => {
     const safeGet = async (url: string, fallback: any) => {
@@ -30,10 +35,9 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
 
     const ticker = activeTicker.toUpperCase();
     
-    const [news, spec, biz, reportsRes, prospectsRes, ratiosRes, valuationRes, techRes, quoteRes] = await Promise.all([
+    const [news, spec, reportsRes, prospectsRes, ratiosRes, valuationRes, techRes, quoteRes] = await Promise.all([
       safeGet(`${API_BASE}/news/${ticker}`, []),
       safeGet(`${API_BASE}/news/special-events`, []),
-      safeGet(`${API_BASE}/news/business-results`, []),
       safeGet(`${API_BASE}/analysis/reports/${ticker}`, []),
       safeGet(`${API_BASE}/analysis/prospects/${ticker}`, null),
       safeGet(`${API_BASE}/finance/ratios/${ticker}`, null),
@@ -42,9 +46,8 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
       safeGet(`${API_BASE}/market/quote/${ticker}`, null)
     ]);
 
-    setTickerNews(news.length > 0 ? news : []);
-    setSpecialEvents(spec.length > 0 ? spec : []);
-    setBizResults(biz.length > 0 ? biz : []);
+    setTickerNews(news);
+    setSpecialEvents(spec);
     setReports(reportsRes);
     setProspects(prospectsRes);
     setRatios(ratiosRes);
@@ -59,413 +62,457 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
     return () => clearInterval(interval);
   }, [activeTicker]);
 
-  const getTagColor = (category: string) => {
-    switch (category) {
-      case 'DIVESTMENT': return 'text-rose-400 border-rose-500/30 bg-rose-500/5';
-      case 'DIVIDEND': return 'text-emerald-400 border-emerald-500/30 bg-emerald-500/5';
-      case 'EARNINGS': return 'text-blue-400 border-blue-500/30 bg-blue-500/5';
-      default: return 'text-slate-400 border-slate-700 bg-slate-800/50';
+  const sections = [
+    { id: 'overview', label: 'Tổng quan', icon: Globe },
+    { id: 'fundamental', label: 'Cơ bản', icon: Award },
+    { id: 'technical', label: 'Kỹ thuật', icon: Activity },
+    { id: 'valuation', label: 'Định giá', icon: Target },
+    { id: 'consensus', label: 'Consensus', icon: FileText },
+    { id: 'risks', label: 'Rủi ro', icon: AlertTriangle },
+  ];
+
+  const getRecommendationColor = (rec: string) => {
+    switch (rec) {
+      case 'MUA': return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
+      case 'KHẢ QUAN': return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
+      case 'TRUNG LẬP': return 'text-orange-500 bg-orange-500/10 border-orange-500/20';
+      case 'BÁN': return 'text-rose-500 bg-rose-500/10 border-rose-500/20';
+      default: return 'text-slate-400 bg-slate-800/50 border-slate-700';
     }
   };
 
   return (
-    <div className="flex flex-col gap-10 max-w-[1600px] mx-auto">
+    <div className="flex gap-8 max-w-[1600px] mx-auto relative">
       
-      {/* HEADER & TOP STATS */}
-      <div className="flex flex-col md:flex-row items-end justify-between border-b-2 border-slate-800 pb-8 gap-6">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-4">
-            <div className="h-1 bg-blue-500 w-12"></div>
-            <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.5em]">Hệ thống Phân tích Chuyên sâu</span>
-          </div>
-          <h1 className="text-7xl font-black text-white uppercase italic tracking-tighter leading-none">
-            {activeTicker}
-          </h1>
+      {/* LEFT NAVIGATION SIDEBAR (STICKY) */}
+      <div className="hidden lg:flex flex-col w-64 gap-2 sticky top-24 h-fit">
+        <div className="p-4 bg-slate-900/50 rounded-2xl border border-slate-800 mb-4">
+           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Mục lục báo cáo</span>
         </div>
-        <div className="flex gap-8 items-center bg-slate-900/50 p-6 rounded-2xl border border-slate-800 shadow-2xl">
-          <div className="flex flex-col gap-1">
-            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Điểm Chất lượng</span>
-            <span className="text-4xl font-black text-emerald-400 tabular-nums italic leading-none">{prospects?.health_score || '--'}</span>
-          </div>
-          <div className="h-12 w-px bg-slate-800"></div>
-          <div className="flex flex-col gap-1 text-right min-w-[120px]">
-            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Giá Hiện tại</span>
-            <div className="flex items-center justify-end gap-3">
-               <span className={`text-xs font-black px-1.5 py-0.5 rounded ${ (realtimeQuote?.change || 0) >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500' }`}>
-                  {(realtimeQuote?.change || 0) > 0 ? '+' : ''}{realtimeQuote?.change || '0.00'}%
-               </span>
-               <span className="text-4xl font-black text-white tabular-nums tracking-tighter">
-                  {(realtimeQuote?.price || 0).toLocaleString()}
-                  <span className="text-xs ml-1 opacity-50 text-slate-400 font-bold uppercase">vnd</span>
-               </span>
-            </div>
-          </div>
+        {sections.map(s => (
+          <button
+            key={s.id}
+            onClick={() => {
+              setActiveSection(s.id);
+              document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            className={`flex items-center gap-4 px-5 py-4 rounded-xl transition-all duration-300 border ${
+              activeSection === s.id 
+                ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/20 translate-x-2' 
+                : 'bg-transparent border-transparent text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+            }`}
+          >
+            <s.icon size={18} />
+            <span className="text-xs font-black uppercase tracking-widest">{s.label}</span>
+          </button>
+        ))}
+        
+        <div className="mt-8 flex flex-col gap-3 px-2">
+           <button className="flex items-center gap-3 text-[10px] font-black text-slate-500 hover:text-blue-400 transition-colors uppercase tracking-widest">
+              <Download size={14} /> Xuất PDF (Research Note)
+           </button>
+           <button className="flex items-center gap-3 text-[10px] font-black text-slate-500 hover:text-emerald-400 transition-colors uppercase tracking-widest">
+              <Plus size={14} /> Thêm vào Watchlist
+           </button>
         </div>
       </div>
 
-      {/* SECTION 0: NEURAL TECHNICAL CORE (SIDE-BY-SIDE) */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-         {/* CHART (LEFT 75%) */}
-         <div className="lg:col-span-3 flex flex-col gap-6">
-            <div className="flex items-center justify-between px-2">
-               <div className="flex items-center gap-4 text-blue-400">
-                  <BarChart3 size={24} />
-                  <h3 className="font-black text-xs uppercase tracking-[0.3em]">Hệ thống Kỹ thuật Độc quyền (Neural HUD)</h3>
-               </div>
-               <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse"></div>
-                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">High-Performance Neural Core</span>
-               </div>
-            </div>
-            <div className="h-[600px] w-full rounded-3xl overflow-hidden border border-slate-800 bg-[#0a0c0f] shadow-2xl relative group">
-               <ProprietaryTechnicalChart key={activeTicker} ticker={activeTicker} />
-            </div>
-         </div>
-
-         {/* TECHNICAL DIAGNOSIS (RIGHT 25%) */}
-         <div className="lg:col-span-1 flex flex-col gap-6">
-            <div className="flex items-center gap-3 text-emerald-400 px-2">
-               <Cpu size={20} />
-               <h3 className="font-black text-[10px] uppercase tracking-[0.3em]">Chẩn đoán Kỹ thuật AI</h3>
-            </div>
-            
-            <div className="flex-1 bg-gradient-to-br from-slate-900 to-black rounded-3xl border border-slate-800 p-8 flex flex-col gap-8 shadow-2xl relative overflow-hidden">
-               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-3xl rounded-full"></div>
-
-               {/* Stage Indicator */}
-               <div className="flex flex-col gap-2">
-                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">Giai đoạn Cổ phiếu</span>
-                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
-                     <p className="text-sm font-black text-emerald-400 uppercase tracking-tighter leading-tight">
-                        {techAnalysis?.stage || 'Đang phân tích...'}
-                     </p>
-                  </div>
-               </div>
-
-               {/* Buy/Sell Pressure */}
-               <div className="flex flex-col gap-3">
-                  <div className="flex justify-between items-end">
-                     <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">Áp lực Cung - Cầu</span>
-                     <span className="text-[10px] font-black text-white tabular-nums">{techAnalysis?.order_flow?.buy || 50}% / {techAnalysis?.order_flow?.sell || 50}%</span>
-                  </div>
-                  <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden flex shadow-inner">
-                     <div className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] transition-all duration-1000" style={{ width: `${techAnalysis?.order_flow?.buy || 50}%` }}></div>
-                     <div className="h-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)] transition-all duration-1000" style={{ width: `${techAnalysis?.order_flow?.sell || 50}%` }}></div>
-                  </div>
-               </div>
-
-               {/* VSA Signals */}
-               <div className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-1">
-                     <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Tín hiệu VSA</span>
-                     <p className="text-[11px] font-bold text-slate-200 italic leading-snug">"{techAnalysis?.vsa_signal || 'Checking supply bars...'}"</p>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                     <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Trạng thái Cung</span>
-                     <p className="text-[11px] font-bold text-slate-400 leading-snug">{techAnalysis?.supply_demand || 'Analyzing liquidity absorption...'}</p>
-                  </div>
-               </div>
-
-               {/* Recommendation */}
-               <div className="mt-auto flex flex-col gap-4 border-t border-white/5 pt-6">
-                  <div className="flex flex-col gap-1">
-                     <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest leading-none">Khuyến nghị Chiến thuật</span>
-                     <p className="text-xl font-black text-white italic tracking-tighter uppercase leading-none mt-1">
-                        {techAnalysis?.verdict || 'WATCHLIST'}
-                     </p>
-                  </div>
-                  <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl">
-                     <p className="text-[10px] text-slate-400 font-medium leading-relaxed italic">
-                        "{techAnalysis?.reason || 'Hệ thống đang quét các điểm Pivot và Pocket Pivot...'}"
-                     </p>
-                  </div>
-               </div>
-            </div>
-         </div>
-      </div>
-
-
-      {/* SECTION 1: CORE STRATEGIC MATRIX & DCF */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-         
-         {/* LEFT: STRATEGIC ROADMAP & DCF MODEL */}
-         <div className="lg:col-span-8 flex flex-col gap-10">
-            <div className="bg-gradient-to-br from-slate-900 to-black p-1 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-slate-800/50">
-              <div className="bg-slate-950/80 rounded-[22px] p-10 flex flex-col gap-10">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-black text-blue-400 uppercase tracking-[0.3em] flex items-center gap-3">
-                    <Zap size={16} fill="currentColor" /> Trụ cột Tăng trưởng Chiến lược
-                  </h3>
-                  <div className="flex gap-1">
-                    {[1, 2, 3].map(i => <div key={i} className="h-1.5 w-1.5 rounded-full bg-blue-500/20"></div>)}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  {(prospects?.growth_pillars || []).map((p: any, i: number) => (
-                    <div key={i} className="flex flex-col gap-4 group">
-                      <div className="h-1 w-0 group-hover:w-full bg-blue-500 transition-all duration-500"></div>
-                      <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Trụ cột 0{i+1}</span>
-                      <h4 className="text-sm font-black text-white uppercase tracking-tight leading-tight group-hover:text-blue-400 transition-colors">{p.title}</h4>
-                      <p className="text-[11px] text-slate-500 leading-relaxed font-medium">{p.content}</p>
+      {/* MAIN CONTENT AREA */}
+      <div className="flex-1 flex flex-col gap-12">
+        
+        {/* SECTION 1: HEADER & QUICK DASHBOARD */}
+        <header id="overview" className="flex flex-col gap-8">
+           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border-b border-slate-800 pb-8">
+              <div className="flex flex-col gap-3">
+                 <div className="flex items-center gap-3">
+                    <div className="px-2 py-0.5 bg-blue-600 text-[10px] font-black text-white rounded">
+                       {prospects?.exchange || 'HOSE'}
                     </div>
-                  ))}
-                </div>
-
-                <div className="h-px bg-slate-800/50 w-full my-4"></div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                  <div className="flex flex-col gap-6">
-                    <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2">
-                      <TrendingUp size={14} /> Catalysts Trọng yếu
-                    </h4>
-                    <div className="flex flex-col gap-3">
-                      {(prospects?.strategic_catalysts || []).map((c: string, i: number) => (
-                        <div key={i} className="flex items-center gap-4 group">
-                          <span className="text-[10px] font-black text-emerald-900 group-hover:text-emerald-500 tabular-nums transition-colors">0{i+1}</span>
-                          <p className="text-[11px] font-bold text-slate-300 italic group-hover:translate-x-1 transition-all">"{c}"</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-6">
-                    <h4 className="text-[10px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-2">
-                      <Shield size={14} /> Rủi ro & Thách thức
-                    </h4>
-                    <div className="flex flex-col gap-3">
-                      {(prospects?.risk_assessment || []).map((r: string, i: number) => (
-                        <div key={i} className="flex items-center gap-4">
-                          <div className="h-1 w-1 bg-rose-500/40 rounded-full"></div>
-                          <p className="text-[11px] font-medium text-slate-500">{r}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* DCF VALUATION MODEL */}
-            <div className="bg-slate-900/40 rounded-3xl border border-slate-800 p-10 flex flex-col gap-10 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-white/5 pb-6">
-                <div className="flex items-center gap-3 text-orange-400">
-                  <Target size={20} />
-                  <h3 className="font-black text-[10px] uppercase tracking-[0.3em]">Mô hình Định giá DCF (Chiết khấu dòng tiền)</h3>
-                </div>
-                <div className="flex items-center gap-6">
-                  <div className="text-right">
-                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Giá trị Nội tại</p>
-                    <p className="text-2xl font-black text-emerald-400 tabular-nums italic">{(valuation?.intrinsic_value || 0).toLocaleString()} ₫</p>
-                  </div>
-                  <div className="px-4 py-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-                    <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Biên an toàn</p>
-                    <p className="text-lg font-black text-emerald-400 tabular-nums">+{valuation?.upside}%</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Param Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                  { label: 'WACC (Chi phí vốn)', value: valuation?.wacc, suffix: '%' },
-                  { label: 'Tăng trưởng g (5y)', value: valuation?.growth_rate, suffix: '%' },
-                  { label: 'Terminal Growth', value: valuation?.terminal_growth, suffix: '%' },
-                  { label: 'Kỳ dự báo', value: '5', suffix: ' Năm' }
-                ].map((item, idx) => (
-                  <div key={idx} className="p-4 bg-black/40 rounded-xl border border-white/5 flex flex-col gap-1 hover:border-orange-500/20 transition-colors">
-                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{item.label}</span>
-                    <span className="text-lg font-black text-white tabular-nums">{item.value}{item.suffix}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* DCF Calculation Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-[10px] font-medium text-slate-400 border-separate border-spacing-0">
-                  <thead>
-                    <tr className="bg-white/5 font-black text-slate-200">
-                      <th className="p-3 text-left border-y border-l border-white/10 rounded-tl-lg uppercase tracking-widest">Dòng tiền (Tỷ đồng)</th>
-                      {[1, 2, 3, 4, 5].map(y => (
-                        <th key={y} className="p-3 text-right border-y border-white/10 uppercase tracking-widest">Năm {y}</th>
-                      ))}
-                      <th className="p-3 text-right border-y border-r border-white/10 rounded-tr-lg uppercase tracking-widest bg-emerald-500/10 text-emerald-400 font-black">Vĩnh viễn</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
-                      <td className="p-3 border-l border-white/5 font-bold text-slate-300">FCF Dự phóng</td>
-                      {(valuation?.fcf_projections || []).map((val: number, i: number) => (
-                        <td key={i} className="p-3 text-right tabular-nums">{val.toLocaleString()}</td>
-                      ))}
-                      <td className="p-3 text-right tabular-nums border-r border-white/5 bg-emerald-500/5 font-bold text-emerald-300">TV: 52,800</td>
-                    </tr>
-                    <tr className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
-                      <td className="p-3 border-l border-white/5 font-bold text-slate-300">Hệ số Chiết khấu</td>
-                      {[1, 2, 3, 4, 5].map(y => (
-                        <td key={y} className="p-3 text-right tabular-nums">{(1 / Math.pow(1 + (valuation?.wacc / 100), y)).toFixed(3)}</td>
-                      ))}
-                      <td className="p-3 text-right tabular-nums border-r border-white/5 bg-emerald-500/5">{(1 / Math.pow(1 + (valuation?.wacc / 100), 5)).toFixed(3)}</td>
-                    </tr>
-                    <tr className="bg-blue-500/5 font-black text-blue-400">
-                      <td className="p-3 border-l border-white/5 rounded-bl-lg uppercase tracking-widest">Hiện giá (PV)</td>
-                      {(valuation?.fcf_projections || []).map((val: number, i: number) => (
-                        <td key={i} className="p-3 text-right tabular-nums">{(val * (1 / Math.pow(1 + (valuation?.wacc / 100), i + 1))).toFixed(0)}</td>
-                      ))}
-                      <td className="p-3 text-right tabular-nums border-r border-white/5 rounded-br-lg bg-emerald-500/10 text-emerald-400 italic">31,500</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="bg-white/[0.02] p-6 rounded-2xl border border-white/5 flex flex-col gap-4">
-                <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest">Cơ sở và Giả định Chiến lược</span>
-                <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {(valuation?.assumptions || []).map((a: string, i: number) => (
-                    <li key={i} className="text-[10px] text-slate-400 font-medium flex gap-3 italic leading-relaxed">
-                      <span className="text-orange-500 shrink-0">▸</span> {a}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-         </div>
-
-         {/* RIGHT: QUANTITATIVE SNAPSHOT & PROPRIETARY FINANCIAL DASHBOARD */}
-         <div className="lg:col-span-4 flex flex-col gap-10">
-            {/* FINANCE SCORECARD */}
-            <div className="bg-white/[0.02] border border-slate-800 rounded-3xl p-8 flex flex-col gap-8 shadow-xl">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-                <h3 className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Chỉ số Tài chính</h3>
-                <Calculator size={16} className="text-orange-500" />
-              </div>
-
-              <div className="flex flex-col gap-4">
-                {[
-                  { label: 'P/E TTM', value: ratios?.pe, suffix: 'x', sub: 'Trung bình ngành: 12.5' },
-                  { label: 'ROE', value: ratios?.roe, suffix: '%', sub: 'Top 5% toàn ngành' },
-                  { label: 'Biên Lợi nhuận', value: ratios?.margin, suffix: '%', sub: 'Hiệu suất vận hành cao' },
-                  { label: 'Nợ/Vốn CSH', value: ratios?.debt_equity, suffix: '', sub: 'Đòn bẩy an toàn' }
-                ].map((r, i) => (
-                  <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-black/40 border border-transparent hover:border-orange-500/20 hover:bg-orange-500/[0.02] transition-all group">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{r.label}</span>
-                      <span className="text-[8px] font-bold text-slate-700 uppercase group-hover:text-slate-500">{r.sub}</span>
-                    </div>
-                    <span className="text-2xl font-black text-white tabular-nums group-hover:text-orange-400 transition-colors">
-                      {r.value}<span className="text-sm ml-0.5 opacity-40">{r.suffix}</span>
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                       {prospects?.industry || 'Ngành nghề'}
                     </span>
-                  </div>
-                ))}
+                 </div>
+                 <div className="flex items-baseline gap-4">
+                    <h1 className="text-7xl font-black text-white italic tracking-tighter leading-none">{activeTicker}</h1>
+                    <span className="text-xl font-bold text-slate-500 italic">{prospects?.company_name}</span>
+                 </div>
               </div>
 
-              <div className="mt-auto bg-orange-500/10 p-5 rounded-2xl border border-orange-500/20">
-                <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest mb-1">Nhận định Chuyên gia</p>
-                <p className="text-[11px] font-bold text-slate-300 leading-relaxed italic">
-                  "{activeTicker} thể hiện nền tảng cơ bản xuất sắc với các chất xúc tác từ AI và công nghệ. Khuyến nghị tích lũy tại các nhịp điều chỉnh."
-                </p>
+              <div className="flex gap-4 items-center">
+                 <div className="flex flex-col items-end">
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Giá hiện tại</span>
+                    <div className="flex items-center gap-3">
+                       <span className={`text-sm font-black px-2 py-0.5 rounded ${ (realtimeQuote?.change || 0) >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500' }`}>
+                          {(realtimeQuote?.change || 0) > 0 ? '+' : ''}{realtimeQuote?.change || '0.00'}%
+                       </span>
+                       <span className="text-5xl font-black text-white tabular-nums tracking-tighter">
+                          {(realtimeQuote?.price || 0).toLocaleString()}
+                          <span className="text-xs ml-1 opacity-40 text-slate-500 uppercase">vnd</span>
+                       </span>
+                    </div>
+                 </div>
               </div>
-            </div>
+           </div>
 
-            {/* PROPRIETARY FINANCIAL DASHBOARD */}
-            <div className="flex flex-col gap-6">
-              <h3 className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em] flex items-center gap-2 px-2">
-                <PieChart size={16} /> Chỉ số Tài chính Độc quyền
-              </h3>
-              <div className="h-[450px] w-full shadow-2xl">
-                <ProprietaryFinancialChart ticker={activeTicker} history={valuation?.history || []} />
+           {/* INVESTMENT RECOMMENDATION BOX */}
+           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className={`lg:col-span-2 p-8 rounded-3xl border-2 flex flex-col gap-6 shadow-2xl relative overflow-hidden ${getRecommendationColor(prospects?.recommendation || 'TRUNG LẬP')}`}>
+                 <div className="absolute top-0 right-0 w-64 h-64 bg-current opacity-[0.03] blur-3xl rounded-full -mr-20 -mt-20"></div>
+                 <div className="flex items-center justify-between relative z-10">
+                    <div className="flex flex-col gap-1">
+                       <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Khuyến nghị đầu tư</span>
+                       <span className="text-6xl font-black italic tracking-tighter">{prospects?.recommendation || 'TRUNG LẬP'}</span>
+                    </div>
+                    <div className="text-right flex flex-col gap-1">
+                       <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Giá mục tiêu (12T)</span>
+                       <span className="text-4xl font-black tabular-nums">{(prospects?.target_price || 0).toLocaleString()} <span className="text-lg opacity-60 uppercase">vnd</span></span>
+                       <span className="text-sm font-black text-emerald-500">Upside +{prospects?.upside || 0}%</span>
+                    </div>
+                 </div>
+                 <div className="h-px bg-current opacity-10 w-full"></div>
+                 <div className="flex flex-wrap gap-10 items-center relative z-10">
+                    <div className="flex flex-col">
+                       <span className="text-[9px] font-black uppercase tracking-widest opacity-60">Mức độ rủi ro</span>
+                       <div className="flex items-center gap-2 mt-1">
+                          <AlertTriangle size={14} />
+                          <span className="text-sm font-black uppercase">{prospects?.risk_level || 'Trung bình'}</span>
+                       </div>
+                    </div>
+                    <div className="flex flex-col">
+                       <span className="text-[9px] font-black uppercase tracking-widest opacity-60">Thời gian nắm giữ</span>
+                       <div className="flex items-center gap-2 mt-1">
+                          <Clock size={14} />
+                          <span className="text-sm font-black uppercase">{prospects?.holding_period || '12 Tháng'}</span>
+                       </div>
+                    </div>
+                    <div className="flex flex-col">
+                       <span className="text-[9px] font-black uppercase tracking-widest opacity-60">Độ tin cậy AI</span>
+                       <div className="flex items-center gap-2 mt-1">
+                          <Shield size={14} />
+                          <span className="text-sm font-black uppercase">{prospects?.confidence_score || 0}%</span>
+                       </div>
+                    </div>
+                 </div>
               </div>
-            </div>
-         </div>
-      </div>
 
-      {/* SECTION 2: THE INTELLIGENCE ENGINE */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-         
-         {/* FEED: REAL-TIME INTEL */}
-         <div className="lg:col-span-7 flex flex-col gap-6">
-            <div className="flex items-center gap-3 text-blue-400 px-2">
-               <Activity size={18} />
-               <h3 className="font-black text-[10px] uppercase tracking-[0.4em]">Luồng Tin tức Tổng hợp</h3>
-            </div>
-            <div className="flex flex-col gap-1 border-t-2 border-slate-800">
-               {tickerNews.map((n, i) => (
-                  <a key={i} href={n.link} target="_blank" className="py-6 border-b border-slate-800 flex flex-col md:flex-row gap-6 group hover:bg-blue-600/[0.02] transition-all px-2">
-                     <div className="md:w-32 shrink-0">
-                        <span className={`text-[8px] font-black px-2 py-1 rounded border ${getTagColor(n.category)}`}>
-                          {n.category}
-                        </span>
-                     </div>
-                     <div className="flex-1 flex flex-col gap-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">{n.source}</span>
-                          <span className="text-[9px] font-bold text-slate-700 uppercase">{n.time}</span>
-                        </div>
-                        <h4 className="text-sm font-bold text-slate-200 group-hover:text-blue-400 transition-colors leading-tight">
-                          {n.title}
-                        </h4>
-                     </div>
-                  </a>
-               ))}
-            </div>
-         </div>
+              {/* FACTOR SCORES HEATMAP */}
+              <div className="bg-slate-900/50 rounded-3xl border border-slate-800 p-8 flex flex-col gap-6 shadow-xl">
+                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Điểm tổng hợp đa nhân tố</span>
+                 <div className="flex flex-col gap-4">
+                    {[
+                       { label: 'Fundamental', score: prospects?.scores?.fundamental || 70, color: 'bg-emerald-500' },
+                       { label: 'Technical', score: prospects?.scores?.technical || 70, color: 'bg-blue-500' },
+                       { label: 'Momentum', score: prospects?.scores?.momentum || 70, color: 'bg-purple-500' },
+                       { label: 'Risk Score', score: prospects?.scores?.risk || 70, color: 'bg-rose-500' },
+                    ].map(f => (
+                       <div key={f.label} className="flex flex-col gap-1.5">
+                          <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-tight">
+                             <span className="text-slate-400">{f.label}</span>
+                             <span className="text-white">{f.score}/100</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                             <div className={`h-full ${f.color} transition-all duration-1000`} style={{ width: `${f.score}%` }}></div>
+                          </div>
+                       </div>
+                    ))}
+                 </div>
+              </div>
+           </div>
+        </header>
 
-         {/* SIDEBAR: RESEARCH & REPORTS */}
-         <div className="lg:col-span-5 grid grid-cols-1 md:grid-cols-2 gap-8 lg:flex lg:flex-col">
-            
-            {/* RESEARCH REPORTS */}
-            <div className="flex flex-col gap-6">
-              <h3 className="text-[10px] font-black text-orange-500 uppercase tracking-widest flex items-center gap-2">
-                <Newspaper size={16} /> Báo cáo Phân tích Chiến lược
-              </h3>
+        {/* SECTION 2: EXECUTIVE SUMMARY */}
+        <section className="bg-white/[0.02] border border-slate-800 rounded-3xl p-10 flex flex-col gap-8 shadow-2xl">
+           <div className="flex items-center gap-4 text-blue-400">
+              <Award size={24} />
+              <h3 className="text-sm font-black uppercase tracking-[0.3em]">Tóm tắt luận điểm đầu tư (Executive Summary)</h3>
+           </div>
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
               <div className="flex flex-col gap-4">
-                {(reports || []).map((r, i) => (
-                  <a 
-                    key={i} 
-                    href={r.link} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="p-6 bg-slate-900/40 rounded-2xl border border-slate-800 group hover:border-orange-500/40 hover:bg-orange-500/[0.02] transition-all flex flex-col gap-3 relative overflow-hidden"
-                  >
-                    <div className="absolute top-2 right-4 opacity-20 group-hover:opacity-100 transition-opacity">
-                      <ExternalLink size={12} className="text-orange-500" />
-                    </div>
-
-                    <div className="flex justify-between items-center">
-                       <span className="text-[9px] font-black text-orange-500 uppercase tracking-[0.2em]">{r.firm}</span>
-                       <span className="text-[9px] font-bold text-slate-600 uppercase">{r.date}</span>
-                    </div>
-                    <h4 className="text-[11px] font-bold text-slate-200 group-hover:text-white transition-colors leading-snug pr-4">{r.title}</h4>
-                    <div className="flex items-center gap-2 text-emerald-400 mt-1">
-                       <div className="h-1 w-1 bg-emerald-500 rounded-full"></div>
-                       <span className="text-[9px] font-black uppercase tracking-widest">{r.target_price || 'Chi tiết'}</span>
-                       <span className="text-[8px] font-bold text-slate-500 ml-auto group-hover:text-orange-400 transition-colors uppercase">Mở báo cáo PDF ▸</span>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            </div>
-
-            {/* EVENT TIMELINE */}
-            <div className="flex flex-col gap-6 bg-slate-900/20 p-8 rounded-3xl border border-slate-800/50">
-               <h3 className="text-[9px] font-black text-blue-400 uppercase tracking-[0.3em] flex items-center gap-2">
-                 <Activity size={14} /> Lộ trình Doanh nghiệp
-               </h3>
-               <div className="flex flex-col gap-6">
-                  {specialEvents.slice(0, 4).map((n, i) => (
+                 {(prospects?.executive_summary || []).map((point: string, i: number) => (
                     <div key={i} className="flex gap-4 group">
-                      <div className="flex flex-col items-center">
-                        <div className="h-2 w-2 rounded-full bg-blue-500 group-hover:scale-150 transition-transform"></div>
-                        {i !== 3 && <div className="w-px h-full bg-slate-800 mt-2"></div>}
-                      </div>
-                      <p className="text-[11px] font-bold text-slate-500 group-hover:text-slate-200 transition-colors leading-snug -mt-1 pb-2">
-                        {n.title}
-                      </p>
+                       <div className="h-6 w-6 rounded-full bg-blue-600/10 border border-blue-500/20 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                          <span className="text-[10px] font-black">0{i+1}</span>
+                       </div>
+                       <p className="text-sm text-slate-300 font-medium leading-relaxed italic">"{point}"</p>
                     </div>
-                  ))}
-               </div>
-            </div>
+                 ))}
+              </div>
+              <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-8 flex flex-col gap-6">
+                 <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                    <Zap size={14} fill="currentColor" /> Catalyst & Động lực tăng trưởng
+                 </h4>
+                 <div className="flex flex-col gap-4">
+                    {(prospects?.strategic_catalysts || []).map((c: string, i: number) => (
+                       <div key={i} className="flex items-center gap-4 group">
+                          <div className="h-1 w-1 rounded-full bg-emerald-500 group-hover:scale-150 transition-transform"></div>
+                          <span className="text-xs font-bold text-slate-200 uppercase tracking-tight">{c}</span>
+                       </div>
+                    ))}
+                 </div>
+              </div>
+           </div>
+        </section>
 
-         </div>
+        {/* SECTION 3: FUNDAMENTAL & FINANCIAL ANALYSIS */}
+        <section id="fundamental" className="flex flex-col gap-8">
+           <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-4 text-emerald-400">
+                 <PieChart size={24} />
+                 <h3 className="text-sm font-black uppercase tracking-[0.3em]">Phân tích tài chính chuyên sâu</h3>
+              </div>
+              <div className="px-4 py-1 bg-slate-900 border border-slate-800 rounded-full">
+                 <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Financial Engine v5.0</span>
+              </div>
+           </div>
+           
+           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              <div className="lg:col-span-8 bg-slate-950 border border-slate-800 rounded-3xl p-2 h-[500px] shadow-2xl relative">
+                 <ProprietaryFinancialChart ticker={activeTicker} history={valuation?.history || []} />
+                 <div className="absolute top-6 left-6 pointer-events-none">
+                    <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">Proprietary Revenue/Profit Model</span>
+                 </div>
+              </div>
+
+              <div className="lg:col-span-4 flex flex-col gap-4">
+                 {[
+                    { label: 'P/E Ratio', value: ratios?.pe, sub: 'Trung bình ngành: 14.2x' },
+                    { label: 'ROE (%)', value: ratios?.roe, sub: 'Khả năng sinh lời vượt trội' },
+                    { label: 'Net Margin (%)', value: ratios?.margin, sub: 'Biên lợi nhuận gộp cải thiện' },
+                    { label: 'D/E Ratio', value: ratios?.debt_equity, sub: 'Đòn bẩy an toàn' },
+                 ].map(r => (
+                    <div key={r.label} className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 hover:border-emerald-500/30 transition-all group">
+                       <div className="flex justify-between items-start">
+                          <div className="flex flex-col">
+                             <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{r.label}</span>
+                             <span className="text-[8px] font-bold text-slate-700 uppercase group-hover:text-slate-500">{r.sub}</span>
+                          </div>
+                          <span className="text-2xl font-black text-white tabular-nums group-hover:text-emerald-400">{r.value}</span>
+                       </div>
+                    </div>
+                 ))}
+                 <div className="mt-auto p-6 bg-blue-600/5 border border-blue-500/10 rounded-2xl">
+                    <p className="text-[11px] font-bold text-slate-400 italic leading-relaxed">
+                       "Nhận định của Analyst: Doanh nghiệp duy trì chất lượng tài sản tốt và dòng tiền ổn định, đảm bảo khả năng chi trả cổ tức cao."
+                    </p>
+                 </div>
+              </div>
+           </div>
+        </section>
+
+        {/* SECTION 4: TECHNICAL DIAGNOSIS */}
+        <section id="technical" className="flex flex-col gap-8">
+           <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-4 text-blue-400">
+                 <Activity size={24} />
+                 <h3 className="text-sm font-black uppercase tracking-[0.3em]">Hệ thống kỹ thuật (Neural Tech Core)</h3>
+              </div>
+              <div className="flex items-center gap-6">
+                 <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Stage Analysis</span>
+                 </div>
+                 <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">VSA Matrix</span>
+                 </div>
+              </div>
+           </div>
+
+           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              <div className="lg:col-span-3 h-[600px] rounded-3xl overflow-hidden border border-slate-800 shadow-2xl">
+                 <ProprietaryTechnicalChart key={activeTicker} ticker={activeTicker} />
+              </div>
+              
+              <div className="flex flex-col gap-6">
+                 <div className="bg-gradient-to-br from-slate-900 to-black rounded-3xl border border-slate-800 p-8 flex flex-col gap-8 shadow-2xl relative overflow-hidden h-full">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 blur-3xl rounded-full"></div>
+                    
+                    <div className="flex flex-col gap-2">
+                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Trạng thái kỹ thuật</span>
+                       <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
+                          <p className="text-sm font-black text-blue-400 uppercase italic tracking-tighter">
+                             {techAnalysis?.stage || 'Đang quét...'}
+                          </p>
+                       </div>
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                       <div className="flex flex-col gap-1">
+                          <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Tín hiệu VSA</span>
+                          <p className="text-xs font-bold text-slate-200 italic leading-snug">"{techAnalysis?.vsa_signal}"</p>
+                       </div>
+                       <div className="flex flex-col gap-1">
+                          <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Điểm Pivot quan trọng</span>
+                          <p className="text-xl font-black text-white tabular-nums">{(techAnalysis?.pivot_point || 0).toLocaleString()} <span className="text-[10px] text-slate-500 uppercase italic">VND</span></p>
+                       </div>
+                    </div>
+
+                    <div className="mt-auto pt-6 border-t border-white/5 flex flex-col gap-4">
+                       <div className="flex flex-col gap-1">
+                          <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest">Verdict</span>
+                          <span className="text-2xl font-black text-white uppercase italic tracking-tighter">{techAnalysis?.verdict}</span>
+                       </div>
+                       <p className="text-[10px] text-slate-500 font-medium leading-relaxed italic">
+                          "{techAnalysis?.reason}"
+                       </p>
+                    </div>
+                 </div>
+              </div>
+           </div>
+        </section>
+
+        {/* SECTION 5: VALUATION MODEL */}
+        <section id="valuation" className="bg-slate-900/40 rounded-3xl border border-slate-800 p-10 flex flex-col gap-10 shadow-2xl">
+           <div className="flex items-center justify-between border-b border-white/5 pb-6">
+              <div className="flex items-center gap-3 text-orange-400">
+                 <Target size={24} />
+                 <h3 className="text-sm font-black uppercase tracking-[0.3em]">Mô hình định giá (Valuation Matrix)</h3>
+              </div>
+              <div className="text-right">
+                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Định giá Fair Value</p>
+                 <p className="text-4xl font-black text-emerald-400 tabular-nums italic">
+                    {(valuation?.intrinsic_value || 0).toLocaleString()} ₫
+                 </p>
+              </div>
+           </div>
+
+           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {[
+                 { label: 'WACC', value: valuation?.wacc, suffix: '%', icon: Calculator },
+                 { label: 'Tăng trưởng (g)', value: valuation?.growth_rate, suffix: '%', icon: TrendingUp },
+                 { label: 'Biên an toàn', value: valuation?.upside, suffix: '%', icon: Shield },
+                 { label: 'Kỳ dự báo', value: '5', suffix: ' Năm', icon: Clock },
+              ].map(item => (
+                 <div key={item.label} className="p-6 bg-black/40 border border-white/5 rounded-2xl flex flex-col gap-2 hover:border-orange-500/20 transition-all">
+                    <div className="flex items-center gap-3">
+                       <item.icon size={14} className="text-orange-500" />
+                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{item.label}</span>
+                    </div>
+                    <span className="text-2xl font-black text-white tabular-nums">{item.value}{item.suffix}</span>
+                 </div>
+              ))}
+           </div>
+
+           <div className="bg-white/[0.02] p-8 rounded-2xl border border-white/5 flex flex-col gap-6">
+              <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Luận điểm định giá</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                 {(valuation?.assumptions || []).map((a: string, i: number) => (
+                    <div key={i} className="flex gap-4">
+                       <span className="text-orange-500 font-black">▸</span>
+                       <p className="text-xs text-slate-400 font-medium italic leading-relaxed">{a}</p>
+                    </div>
+                 ))}
+              </div>
+           </div>
+        </section>
+
+        {/* SECTION 6: CONSENSUS & RESEARCH REPORTS */}
+        <section id="consensus" className="flex flex-col gap-8">
+           <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-4 text-purple-400">
+                 <FileText size={24} />
+                 <h3 className="text-sm font-black uppercase tracking-[0.3em]">Đồng thuận thị trường (Consensus View)</h3>
+              </div>
+              <div className="flex gap-4">
+                 <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded text-[9px] font-black text-emerald-500 uppercase">
+                    Mua: {prospects?.consensus?.buy}
+                 </div>
+                 <div className="px-3 py-1 bg-orange-500/10 border border-orange-500/20 rounded text-[9px] font-black text-orange-500 uppercase">
+                    Giữ: {prospects?.consensus?.hold}
+                 </div>
+              </div>
+           </div>
+
+           <div className="bg-slate-900/30 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+              <table className="w-full text-[11px] border-separate border-spacing-0">
+                 <thead>
+                    <tr className="bg-white/5 text-slate-400 font-black text-[10px] uppercase tracking-widest">
+                       <th className="p-6 text-left border-b border-slate-800">Tổ chức phân tích</th>
+                       <th className="p-6 text-center border-b border-slate-800">Khuyến nghị</th>
+                       <th className="p-6 text-right border-b border-slate-800">Giá mục tiêu</th>
+                       <th className="p-6 text-right border-b border-slate-800">Upside</th>
+                       <th className="p-6 text-center border-b border-slate-800">Thao tác</th>
+                    </tr>
+                 </thead>
+                 <tbody className="text-slate-300">
+                    {(reports || []).map((r, i) => (
+                       <tr key={i} className="hover:bg-white/[0.02] transition-colors group">
+                          <td className="p-6 border-b border-slate-800/50">
+                             <div className="flex flex-col">
+                                <span className="font-black text-white uppercase tracking-tighter text-sm">{r.firm}</span>
+                                <span className="text-[9px] text-slate-600 font-bold uppercase mt-1">{r.date}</span>
+                             </div>
+                          </td>
+                          <td className="p-6 border-b border-slate-800/50 text-center">
+                             <span className="px-3 py-1 bg-blue-500/10 text-blue-400 rounded text-[9px] font-black uppercase">Khả quan</span>
+                          </td>
+                          <td className="p-6 border-b border-slate-800/50 text-right font-black tabular-nums">
+                             {(r.target_price || prospects?.consensus?.avg_target).toLocaleString()} ₫
+                          </td>
+                          <td className="p-6 border-b border-slate-800/50 text-right text-emerald-500 font-black tabular-nums">
+                             +{(r.upside || 15.5)}%
+                          </td>
+                          <td className="p-6 border-b border-slate-800/50 text-center">
+                             <a href={r.link} target="_blank" className="p-2 hover:bg-blue-600/20 rounded-full transition-colors inline-block text-blue-500">
+                                <ExternalLink size={14} />
+                             </a>
+                          </td>
+                       </tr>
+                    ))}
+                 </tbody>
+              </table>
+           </div>
+        </section>
+
+        {/* SECTION 7: RISK MATRIX */}
+        <section id="risks" className="bg-rose-600/5 border border-rose-500/10 rounded-3xl p-10 flex flex-col gap-8 shadow-xl">
+           <div className="flex items-center gap-4 text-rose-500">
+              <AlertTriangle size={24} />
+              <h3 className="text-sm font-black uppercase tracking-[0.3em]">Ma trận rủi ro (Risk Assessment)</h3>
+           </div>
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {(prospects?.risk_assessment || []).map((r: any, i: number) => (
+                 <div key={i} className="p-6 bg-black/40 border border-slate-800 rounded-2xl flex flex-col gap-4 group hover:border-rose-500/20 transition-all">
+                    <div className="flex justify-between items-center">
+                       <h4 className="text-xs font-black text-slate-200 uppercase tracking-widest">{r.title}</h4>
+                       <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
+                          r.impact === 'High' ? 'bg-rose-500 text-white' : 'bg-orange-500/20 text-orange-500'
+                       }`}>
+                          Impact: {r.impact}
+                       </span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed italic group-hover:text-slate-400 transition-colors">
+                       "{r.content}"
+                    </p>
+                 </div>
+              ))}
+           </div>
+        </section>
+
+        {/* FOOTER: ANALYST FINAL VIEW */}
+        <footer className="mt-12 bg-gradient-to-br from-slate-900 to-black border-2 border-blue-500/20 rounded-3xl p-10 shadow-2xl relative overflow-hidden">
+           <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/5 blur-[100px] rounded-full -mb-48 -mr-48"></div>
+           <div className="relative z-10 flex flex-col gap-6">
+              <div className="flex items-center gap-4 text-blue-400">
+                 <Award size={24} />
+                 <h3 className="text-xs font-black uppercase tracking-[0.5em]">Quan điểm cuối cùng của Analyst</h3>
+              </div>
+              <p className="text-lg font-bold text-slate-200 leading-relaxed italic">
+                 "Chúng tôi duy trì khuyến nghị <span className="text-emerald-400 underline">{prospects?.recommendation}</span> đối với cổ phiếu {activeTicker} với giá mục tiêu 12 tháng là {prospects?.target_price?.toLocaleString()} ₫/cp. Luận điểm chính đến từ sự bùng nổ lợi nhuận mảng công nghệ/thép và định giá còn hấp dẫn so với tiềm năng tăng trưởng. Tuy nhiên, nhà đầu tư nên theo dõi sát các nhịp điều chỉnh kỹ thuật để tối ưu hóa điểm mua."
+              </p>
+              <div className="flex items-center gap-8 mt-4 pt-6 border-t border-white/5">
+                 <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Thời gian cập nhật</span>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-tight">28/04/2026 | 09:50 AM</span>
+                 </div>
+                 <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Research ID</span>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-tight">AX-5502-CORE</span>
+                 </div>
+              </div>
+           </div>
+        </footer>
+
       </div>
     </div>
   );
