@@ -238,33 +238,103 @@ class VNStockTerminalApp:
         @self.app.get("/api/analysis/technical/{ticker}")
         async def get_technical_analysis(ticker: str):
             ticker = ticker.upper()
-            analysis = {
-                "FPT": {
-                    "stage": "Giai đoạn 2 (Uptrend)",
-                    "status": "Dòng tiền bùng nổ",
-                    "vsa_signal": "Pocket Pivot / Volume > 150%",
-                    "supply_demand": "Cạn cung vùng nền 132",
-                    "order_flow": {"buy": 65, "sell": 35},
-                    "pivot_point": 134.5,
-                    "verdict": "MUA / GIA TĂNG",
-                    "reason": "Thoát vùng tích lũy, xác nhận xu hướng tăng mạnh."
-                },
-                "HPG": {
-                    "stage": "Giai đoạn 1 (Tích lũy)",
-                    "status": "Kiệt cung / Sideway",
-                    "vsa_signal": "No Supply Bar / VCP Pattern",
-                    "supply_demand": "Lực bán yếu dần, chờ breakout",
-                    "order_flow": {"buy": 52, "sell": 48},
-                    "pivot_point": 29.2,
-                    "verdict": "THEO DÕI",
-                    "reason": "Cuối mô hình tích lũy, khối lượng thấp tích cực."
+            try:
+                # Lấy dữ liệu 1 năm để tính toán các đường MA dài hạn
+                q = Quote(symbol=ticker, source='KBS')
+                df = q.history(length='1Y', interval='1D')
+                if df is None or df.empty or len(df) < 50:
+                    raise Exception("Insufficient data")
+                
+                df = df.sort_values(by='time', ascending=True)
+                latest = df.iloc[-1]
+                prev = df.iloc[-2]
+                
+                # 1. TÍNH TOÁN CÁC CHỈ BÁO KỸ THUẬT NỀN TẢNG
+                close_prices = df['close'].values
+                ma50 = df['close'].rolling(window=50).mean().iloc[-1]
+                ma150 = df['close'].rolling(window=150).mean().iloc[-1]
+                ma200 = df['close'].rolling(window=200).mean().iloc[-1]
+                
+                # 2. XÁC ĐỊNH GIAI ĐOẠN (STAGE ANALYSIS BY STAN WEINSTEIN)
+                stage = "Giai đoạn 1 (Tích lũy)"
+                verdict = "THEO DÕI"
+                color = "blue"
+                
+                if latest['close'] > ma50 > ma150 > ma200:
+                    stage = "Giai đoạn 2 (Đẩy giá - Uptrend)"
+                    verdict = "MUA / NẮM GIỮ"
+                    color = "emerald"
+                elif latest['close'] < ma50 < ma150 < ma200:
+                    stage = "Giai đoạn 4 (Giảm giá - Downtrend)"
+                    verdict = "BÁN / TRÁNH XA"
+                    color = "rose"
+                elif ma200 > ma150 and latest['close'] < ma150:
+                    stage = "Giai đoạn 3 (Phân phối)"
+                    verdict = "HẠ TỶ TRỌNG"
+                    color = "orange"
+
+                # 3. PHÂN TÍCH VSA (VOLUME SPREAD ANALYSIS)
+                avg_vol = df['volume'].tail(20).mean()
+                vol_ratio = latest['volume'] / avg_vol
+                price_change = (latest['close'] - prev['close']) / prev['close']
+                
+                vsa_signal = "Neutral"
+                supply_demand = "Cân bằng"
+                
+                if price_change > 0.02 and vol_ratio > 1.5:
+                    vsa_signal = "Demand Bar (Cầu áp đảo)"
+                    supply_demand = "Dòng tiền lớn nhập cuộc"
+                elif price_change < -0.02 and vol_ratio > 1.5:
+                    vsa_signal = "Supply Bar (Áp lực bán tháo)"
+                    supply_demand = "Tổ chức thoát hàng"
+                elif abs(price_change) < 0.005 and vol_ratio < 0.6:
+                    vsa_signal = "No Supply Bar"
+                    supply_demand = "Kiệt cung - Cực kỳ tích cực"
+
+                # 4. TÍNH TOÁN ĐIỂM PIVOT & TÍN HIỆU SEPA
+                current_price = latest['close']
+                high_52w = df['high'].max()
+                low_52w = df['low'].min()
+                dist_from_high = (high_52w - current_price) / high_52w
+                
+                reason = "Cổ phiếu đang tích lũy trong nền giá chặt chẽ."
+                if dist_from_high < 0.05 and vol_ratio > 1.2:
+                    reason = "Đang áp sát đỉnh 52 tuần với khối lượng tăng dần. Dấu hiệu Breakout."
+                elif current_price > ma50 and price_change > 0:
+                    reason = "Vận động tích cực trên đường MA50 dốc lên."
+
+                return {
+                    "ticker": ticker,
+                    "stage": stage,
+                    "status": "Tích cực" if verdict in ["MUA", "NẮM GIỮ"] else "Cần quan sát",
+                    "vsa_signal": vsa_signal,
+                    "supply_demand": supply_demand,
+                    "order_flow": {
+                        "buy": int(60 if price_change > 0 else 40),
+                        "sell": int(40 if price_change > 0 else 60)
+                    },
+                    "pivot_point": round(high_52w, 1),
+                    "verdict": verdict,
+                    "reason": reason,
+                    "metrics": {
+                        "ma50": round(ma50, 1),
+                        "ma200": round(ma200, 1),
+                        "vol_ratio": round(vol_ratio, 2),
+                        "dist_high_52w": round(dist_from_high * 100, 1)
+                    }
                 }
-            }
-            return analysis.get(ticker, {
-                "stage": "Giai đoạn 1", "status": "Neutral", "vsa_signal": "Dữ liệu trung tính",
-                "supply_demand": "Cân bằng", "order_flow": {"buy": 50, "sell": 50},
-                "pivot_point": 0, "verdict": "THEO DÕI", "reason": "Chờ xác nhận."
-            })
+            except Exception as e:
+                logger.error(f"Analysis Engine Error: {e}")
+                return {
+                    "stage": "Đang quét dữ liệu...",
+                    "status": "N/A",
+                    "vsa_signal": "Analyzing...",
+                    "supply_demand": "Calculating...",
+                    "order_flow": {"buy": 50, "sell": 50},
+                    "pivot_point": 0,
+                    "verdict": "CHỜ DỮ LIỆU",
+                    "reason": f"Đang đồng bộ hóa dữ liệu từ Vnstock: {str(e)}"
+                }
 
         @self.app.get("/api/analysis/reports/{ticker}")
         async def get_reports(ticker: str):
