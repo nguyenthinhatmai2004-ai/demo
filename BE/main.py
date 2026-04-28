@@ -269,130 +269,90 @@ class VNStockTerminalApp:
         async def get_technical_analysis(ticker: str):
             ticker = ticker.upper()
             try:
-                # 1. FETCH DATA (3Y for Monthly/Weekly analysis)
+                # Lấy dữ liệu 1 năm để tính toán các đường MA dài hạn
                 q = Quote(symbol=ticker, source='KBS')
-                df = q.history(length='3Y', interval='1D')
-                if df is None or df.empty or len(df) < 100:
-                    raise Exception("Insufficient data for CMT analysis")
+                df = q.history(length='1Y', interval='1D')
+                if df is None or df.empty or len(df) < 50:
+                    raise Exception("Insufficient data")
                 
                 df = df.sort_values(by='time', ascending=True)
                 latest = df.iloc[-1]
                 prev = df.iloc[-2]
                 
-                # 2. MOVING AVERAGES SYSTEM
-                ma20 = df['close'].rolling(window=20).mean()
-                ma50 = df['close'].rolling(window=50).mean()
-                ma150 = df['close'].rolling(window=150).mean()
-                ma200 = df['close'].rolling(window=200).mean()
+                # 1. TÍNH TOÁN CÁC CHỈ BÁO KỸ THUẬT NỀN TẢNG
+                close_prices = df['close'].values
+                ma50 = df['close'].rolling(window=50).mean().iloc[-1]
+                ma150 = df['close'].rolling(window=150).mean().iloc[-1]
+                ma200 = df['close'].rolling(window=200).mean().iloc[-1]
                 
-                cur_ma20, cur_ma50, cur_ma200 = ma20.iloc[-1], ma50.iloc[-1], ma200.iloc[-1]
+                # 2. XÁC ĐỊNH GIAI ĐOẠN (STAGE ANALYSIS BY STAN WEINSTEIN)
+                stage = "Giai đoạn 1 (Tích lũy)"
+                verdict = "THEO DÕI"
+                color = "blue"
                 
-                # 3. TREND DIAGNOSIS (Daily/Weekly/Monthly)
-                # Short-term (Daily)
-                st_trend = "Uptrend" if latest['close'] > cur_ma20 else "Downtrend"
-                if abs(latest['close'] - cur_ma20) / cur_ma20 < 0.01: st_trend = "Sideway"
-                
-                # Medium-term (Weekly - derived from Daily)
-                mt_trend = "Uptrend" if cur_ma50 > cur_ma150 else "Downtrend"
-                
-                # Long-term (Monthly)
-                lt_trend = "Uptrend" if cur_ma150 > cur_ma200 else "Downtrend"
-                
-                # Trend Phase (Stage Analysis)
-                phase = "Accumulation"
-                if latest['close'] > cur_ma50 and cur_ma50 > cur_ma200: phase = "Mark-up (Stage 2)"
-                elif latest['close'] < cur_ma50 and cur_ma50 < cur_ma200: phase = "Decline (Stage 4)"
-                elif abs(cur_ma50 - cur_ma200) / cur_ma200 < 0.05: phase = "Distribution/Sideway"
+                if latest['close'] > ma50 > ma150 > ma200:
+                    stage = "Giai đoạn 2 (Đẩy giá - Uptrend)"
+                    verdict = "MUA / NẮM GIỮ"
+                    color = "emerald"
+                elif latest['close'] < ma50 < ma150 < ma200:
+                    stage = "Giai đoạn 4 (Giảm giá - Downtrend)"
+                    verdict = "BÁN / TRÁNH XA"
+                    color = "rose"
+                elif ma200 > ma150 and latest['close'] < ma150:
+                    stage = "Giai đoạn 3 (Phân phối)"
+                    verdict = "HẠ TỶ TRỌNG"
+                    color = "orange"
 
-                # 4. VOLUME SPIKE DETECTION (VSA)
-                vol20 = df['volume'].rolling(window=20).mean()
-                cur_vol20 = vol20.iloc[-1]
-                vol_ratio = latest['volume'] / cur_vol20
-                price_pct = (latest['close'] - prev['close']) / prev['close']
+                # 3. PHÂN TÍCH VSA (VOLUME SPREAD ANALYSIS)
+                avg_vol = df['volume'].tail(20).mean()
+                vol_ratio = latest['volume'] / avg_vol
+                price_change = (latest['close'] - prev['close']) / prev['close']
                 
-                spike_type = "Normal"
                 vsa_signal = "Neutral"
-                vsa_color = "slate"
+                supply_demand = "Cân bằng"
                 
-                if vol_ratio > 2.0:
-                    if price_pct > 0.02: 
-                        spike_type = "Breakout Spike"
-                        vsa_signal = "Dòng tiền lớn đẩy giá (Demand Spike)"
-                        vsa_color = "emerald"
-                    elif price_pct < -0.02:
-                        spike_type = "Distribution Spike"
-                        vsa_signal = "Áp lực bán tháo tổ chức (Supply Spike)"
-                        vsa_color = "rose"
-                    else:
-                        spike_type = "Absorption Spike"
-                        vsa_signal = "Hấp thụ cung/Dừng rơi"
-                        vsa_color = "blue"
-                elif vol_ratio < 0.6 and abs(price_pct) < 0.005:
-                    vsa_signal = "No Supply Bar (Kiệt cung tích cực)"
-                    vsa_color = "blue"
+                if price_change > 0.02 and vol_ratio > 1.5:
+                    vsa_signal = "Demand Bar (Cầu áp đảo)"
+                    supply_demand = "Dòng tiền lớn nhập cuộc"
+                elif price_change < -0.02 and vol_ratio > 1.5:
+                    vsa_signal = "Supply Bar (Áp lực bán tháo)"
+                    supply_demand = "Tổ chức thoát hàng"
+                elif abs(price_change) < 0.005 and vol_ratio < 0.6:
+                    vsa_signal = "No Supply Bar"
+                    supply_demand = "Kiệt cung - Cực kỳ tích cực"
 
-                # 5. SUPPORT & RESISTANCE (Dynamic Mapping)
-                high_52w = df['high'].tail(250).max()
-                low_52w = df['low'].tail(250).min()
+                # 4. TÍNH TOÁN ĐIỂM PIVOT & TÍN HIỆU SEPA
+                current_price = latest['close']
+                high_52w = df['high'].max()
+                low_52w = df['low'].min()
+                dist_from_high = (high_52w - current_price) / high_52w
                 
-                # Simple logic for S/R zones
-                resistances = [
-                    {"price": round(high_52w, 1), "type": "Đỉnh 52 tuần", "strength": "Strong"},
-                    {"price": round(cur_ma200 * 1.1, 1), "type": "Kháng cự tâm lý", "strength": "Medium"}
-                ]
-                supports = [
-                    {"price": round(cur_ma50, 1), "type": "Hỗ trợ MA50", "strength": "Medium"},
-                    {"price": round(low_52w, 1), "type": "Đáy 52 tuần", "strength": "Strong"}
-                ]
+                reason = "Cổ phiếu đang tích lũy trong nền giá chặt chẽ."
+                if dist_from_high < 0.05 and vol_ratio > 1.2:
+                    reason = "Đang áp sát đỉnh 52 tuần với khối lượng tăng dần. Dấu hiệu Breakout."
+                elif current_price > ma50 and price_change > 0:
+                    reason = "Vận động tích cực trên đường MA50 dốc lên."
 
-                # 6. TRADING PLAN & RISK/REWARD
-                stop_loss = round(cur_ma50 * 0.95, 1)
-                target = round(latest['close'] * 1.2, 1)
-                risk = latest['close'] - stop_loss
-                reward = target - latest['close']
-                rr_ratio = round(reward / risk, 2) if risk > 0 else 0
-
-                # 7. TECHNICAL RATING SCORE (CMT 7-Factor)
-                trend_score = 25 if lt_trend == "Uptrend" else 10
-                rs_score = 15 if price_pct > 0 else 5 # Simplified RS
-                vol_score = 15 if vol_ratio > 1.2 and price_pct > 0 else 7
-                mom_score = 15 if st_trend == "Uptrend" else 5
-                
-                total_score = trend_score + rs_score + vol_score + mom_score + 15 # + Base
-                
                 return {
                     "ticker": ticker,
-                    "trends": {
-                        "short_term": st_trend,
-                        "medium_term": mt_trend,
-                        "long_term": lt_trend,
-                        "alignment": "Đồng thuận" if st_trend == mt_trend == lt_trend else "Lệch pha",
-                        "phase": phase
+                    "stage": stage,
+                    "status": "Tích cực" if verdict in ["MUA", "NẮM GIỮ"] else "Cần quan sát",
+                    "vsa_signal": vsa_signal,
+                    "supply_demand": supply_demand,
+                    "order_flow": {
+                        "buy": int(60 if price_change > 0 else 40),
+                        "sell": int(40 if price_change > 0 else 60)
                     },
-                    "vsa": {
-                        "spike_type": spike_type,
-                        "signal": vsa_signal,
-                        "color": vsa_color,
-                        "vol_ratio": round(vol_ratio, 2)
-                    },
-                    "levels": {
-                        "supports": supports,
-                        "resistances": resistances,
-                        "pivot": round(high_52w, 1)
-                    },
-                    "trading_plan": {
-                        "entry": "Chờ Pullback" if vol_ratio > 3 else "Vùng hiện tại",
-                        "stop_loss": stop_loss,
-                        "target": target,
-                        "rr_ratio": rr_ratio,
-                        "verdict": "MUA" if total_score > 70 else "THEO DÕI"
-                    },
-                    "score": total_score,
-                    "reason": f"Giá đang vận động trong {phase}. Tín hiệu {vsa_signal} với khối lượng gấp {round(vol_ratio,1)} lần trung bình."
+                    "pivot_point": round(high_52w, 1),
+                    "verdict": verdict,
+                    "reason": reason,
+                    "metrics": {
+                        "ma50": round(ma50, 1),
+                        "ma200": round(ma200, 1),
+                        "vol_ratio": round(vol_ratio, 2),
+                        "dist_high_52w": round(dist_from_high * 100, 1)
+                    }
                 }
-            except Exception as e:
-                logger.error(f"CMT Engine Error: {e}")
-                return {"score": 0, "reason": str(e)}
             except Exception as e:
                 logger.error(f"Analysis Engine Error: {e}")
                 return {

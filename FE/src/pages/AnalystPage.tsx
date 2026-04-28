@@ -299,128 +299,61 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
            </div>
         </section>
 
-        {/* SECTION 4: CMT TECHNICAL DASHBOARD */}
-        <section id="technical" className="flex flex-col gap-10">
-           <div className="flex flex-col md:flex-row items-end justify-between px-2 gap-6">
-              <div className="flex flex-col gap-2">
-                 <div className="flex items-center gap-4 text-blue-400">
-                    <Activity size={24} />
-                    <h3 className="text-sm font-black uppercase tracking-[0.3em]">Hệ thống phân tích CMT Level 1 (Market Technician)</h3>
-                 </div>
-                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Tập trung: Cấu trúc xu hướng & Xác nhận khối lượng đột biến</p>
+        {/* SECTION 4: TECHNICAL DIAGNOSIS */}
+        <section id="technical" className="flex flex-col gap-8">
+           <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-4 text-blue-400">
+                 <Activity size={24} />
+                 <h3 className="text-sm font-black uppercase tracking-[0.3em]">Hệ thống kỹ thuật (Neural Tech Core)</h3>
               </div>
-              <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800 flex gap-10">
-                 <div className="flex flex-col gap-1">
-                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Trend Quality</span>
-                    <span className="text-2xl font-black text-white italic">{techAnalysis?.score || '--'}<span className="text-[10px] opacity-30 ml-1">/100</span></span>
+              <div className="flex items-center gap-6">
+                 <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Stage Analysis</span>
                  </div>
-                 <div className="h-10 w-px bg-slate-800"></div>
-                 <div className="flex flex-col gap-1">
-                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Alignment</span>
-                    <span className="text-sm font-black text-emerald-500 uppercase tracking-tighter">{techAnalysis?.trends?.alignment || '--'}</span>
+                 <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">VSA Matrix</span>
                  </div>
               </div>
            </div>
 
-           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              {/* MAIN CHART PANEL */}
-              <div className="lg:col-span-8 flex flex-col gap-6">
-                 <div className="h-[650px] rounded-3xl overflow-hidden border border-slate-800 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative group bg-[#0a0c0f]">
-                    <ProprietaryTechnicalChart key={activeTicker} ticker={activeTicker} />
-                    <div className="absolute top-6 left-6 pointer-events-none flex flex-col gap-1">
-                       <span className="text-[10px] font-black text-blue-500/40 uppercase tracking-[0.4em]">Neural Price Action Core</span>
-                       <div className="flex items-center gap-2">
-                          <div className="h-1 w-1 rounded-full bg-blue-500 animate-ping"></div>
-                          <span className="text-[8px] font-black text-slate-700 uppercase tracking-widest">Real-time OHLCV Sync</span>
-                       </div>
-                    </div>
-                 </div>
-
-                 {/* VOLUME SPIKE MATRIX */}
-                 <div className="bg-slate-900/30 border border-slate-800 rounded-3xl p-8 flex flex-col gap-6">
-                    <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
-                       <BarChart3 size={14} /> Chi tiết dòng tiền đột biến (VSA Matrix)
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                       <div className={`p-6 rounded-2xl border bg-black/40 flex flex-col gap-4 border-${techAnalysis?.vsa?.color}-500/20`}>
-                          <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Loại Spike gần nhất</span>
-                          <span className={`text-sm font-black uppercase text-${techAnalysis?.vsa?.color}-400 italic`}>{techAnalysis?.vsa?.spike_type || 'Normal'}</span>
-                       </div>
-                       <div className="p-6 rounded-2xl border border-white/5 bg-black/40 flex flex-col gap-4">
-                          <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Tỷ lệ Vol / Vol20</span>
-                          <span className="text-xl font-black text-white tabular-nums">{techAnalysis?.vsa?.vol_ratio || '--'}x</span>
-                       </div>
-                       <div className="p-6 rounded-2xl border border-white/5 bg-black/40 flex flex-col gap-4">
-                          <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Vùng Pivot Key</span>
-                          <span className="text-xl font-black text-emerald-400 tabular-nums">{(techAnalysis?.levels?.pivot || 0).toLocaleString()}</span>
-                       </div>
-                    </div>
-                 </div>
+           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              <div className="lg:col-span-3 h-[600px] rounded-3xl overflow-hidden border border-slate-800 shadow-2xl">
+                 <ProprietaryTechnicalChart key={activeTicker} ticker={activeTicker} />
               </div>
               
-              {/* SIDEBAR: TREND & TRADING PLAN */}
-              <div className="lg:col-span-4 flex flex-col gap-8">
-                 {/* Multi-timeframe Trend */}
-                 <div className="bg-gradient-to-br from-slate-900 to-black rounded-3xl border border-slate-800 p-8 flex flex-col gap-8 shadow-2xl relative overflow-hidden">
+              <div className="flex flex-col gap-6">
+                 <div className="bg-gradient-to-br from-slate-900 to-black rounded-3xl border border-slate-800 p-8 flex flex-col gap-8 shadow-2xl relative overflow-hidden h-full">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 blur-3xl rounded-full"></div>
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Chẩn đoán xu hướng Đa khung</span>
+                    
+                    <div className="flex flex-col gap-2">
+                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Trạng thái kỹ thuật</span>
+                       <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
+                          <p className="text-sm font-black text-blue-400 uppercase italic tracking-tighter">
+                             {techAnalysis?.stage || 'Đang quét...'}
+                          </p>
+                       </div>
+                    </div>
+
                     <div className="flex flex-col gap-4">
-                       {[
-                          { label: 'Long-term (Monthly)', value: techAnalysis?.trends?.long_term, color: 'text-blue-400' },
-                          { label: 'Medium-term (Weekly)', value: techAnalysis?.trends?.medium_term, color: 'text-indigo-400' },
-                          { label: 'Short-term (Daily)', value: techAnalysis?.trends?.short_term, color: 'text-emerald-400' },
-                       ].map(t => (
-                          <div key={t.label} className="flex justify-between items-center py-3 border-b border-white/5 group">
-                             <span className="text-[10px] font-bold text-slate-500 uppercase">{t.label}</span>
-                             <span className={`text-xs font-black uppercase italic ${t.color}`}>{t.value || '--'}</span>
-                          </div>
-                       ))}
-                    </div>
-                    <div className="p-5 bg-white/5 border border-white/10 rounded-2xl">
-                       <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Giai đoạn cấu trúc (Phase)</span>
-                       <p className="text-xs font-black text-white uppercase mt-1 italic tracking-tighter">{techAnalysis?.trends?.phase || 'Đang xác nhận...'}</p>
-                    </div>
-                 </div>
-
-                 {/* Trading Plan Table */}
-                 <div className="bg-slate-900/40 border-2 border-blue-500/20 rounded-3xl p-8 flex flex-col gap-8 shadow-2xl relative">
-                    <div className="flex items-center justify-between">
-                       <h4 className="text-[10px] font-black text-orange-500 uppercase tracking-widest flex items-center gap-2">
-                          <Layers size={14} /> Kế hoạch Giao dịch CMT
-                       </h4>
-                       <span className="px-2 py-0.5 bg-orange-500/10 text-orange-500 text-[8px] font-black rounded uppercase">T+ / Position</span>
+                       <div className="flex flex-col gap-1">
+                          <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Tín hiệu VSA</span>
+                          <p className="text-xs font-bold text-slate-200 italic leading-snug">"{techAnalysis?.vsa_signal}"</p>
+                       </div>
+                       <div className="flex flex-col gap-1">
+                          <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Điểm Pivot quan trọng</span>
+                          <p className="text-xl font-black text-white tabular-nums">{(techAnalysis?.pivot_point || 0).toLocaleString()} <span className="text-[10px] text-slate-500 uppercase italic">VND</span></p>
+                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-6">
-                       <div className="flex justify-between items-end border-b border-white/5 pb-4">
-                          <div className="flex flex-col gap-1">
-                             <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Hành động đề xuất</span>
-                             <span className="text-2xl font-black text-white italic tracking-tighter uppercase">{techAnalysis?.trading_plan?.verdict || 'WATCHLIST'}</span>
-                          </div>
-                          <div className="text-right">
-                             <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Entry Zone</span>
-                             <p className="text-xs font-bold text-emerald-400">{techAnalysis?.trading_plan?.entry || '--'}</p>
-                          </div>
+                    <div className="mt-auto pt-6 border-t border-white/5 flex flex-col gap-4">
+                       <div className="flex flex-col gap-1">
+                          <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest">Verdict</span>
+                          <span className="text-2xl font-black text-white uppercase italic tracking-tighter">{techAnalysis?.verdict}</span>
                        </div>
-
-                       <div className="grid grid-cols-2 gap-4">
-                          <div className="p-4 bg-rose-500/5 border border-rose-500/10 rounded-xl flex flex-col gap-1">
-                             <span className="text-[8px] font-black text-rose-500/60 uppercase tracking-widest">Stop-loss</span>
-                             <span className="text-sm font-black text-white tabular-nums">{(techAnalysis?.trading_plan?.stop_loss || 0).toLocaleString()}</span>
-                          </div>
-                          <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl flex flex-col gap-1">
-                             <span className="text-[8px] font-black text-emerald-500/60 uppercase tracking-widest">Profit Target</span>
-                             <span className="text-sm font-black text-white tabular-nums">{(techAnalysis?.trading_plan?.target || 0).toLocaleString()}</span>
-                          </div>
-                       </div>
-
-                       <div className="flex justify-between items-center bg-black/20 p-4 rounded-xl border border-white/5">
-                          <span className="text-[9px] font-black text-slate-500 uppercase">Tỷ lệ Risk / Reward</span>
-                          <span className="text-sm font-black text-white italic">1 : {techAnalysis?.trading_plan?.rr_ratio || '--'}</span>
-                       </div>
-
-                       <p className="text-[10px] text-slate-500 font-medium italic leading-relaxed border-t border-white/5 pt-4">
-                          "Ghi chú CMT: {techAnalysis?.reason}"
+                       <p className="text-[10px] text-slate-500 font-medium leading-relaxed italic">
+                          "{techAnalysis?.reason}"
                        </p>
                     </div>
                  </div>
