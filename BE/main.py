@@ -393,9 +393,52 @@ class VNStockTerminalApp:
                     ],
                     "strategic_catalysts": ["AI Factory Q3/2026", "Giáo dục mở rộng", "Làn sóng AI"],
                     "risk_assessment": ["Thiếu nhân sự IT", "Tỷ giá JPY"]
+                },
+                "HPG": {
+                    "health_score": 88,
+                    "growth_pillars": [
+                        {"title": "Dung Quất 2", "content": "Giai đoạn 1 đi vào hoạt động giúp tăng 60% công suất HRC."},
+                        {"title": "Thị trường Xuất khẩu", "content": "Mở rộng thị trường EU và Mỹ với tiêu chuẩn xanh."},
+                        {"title": "Hệ sinh thái Thép", "content": "Tối ưu hóa chuỗi giá trị từ quặng sắt đến container."}
+                    ],
+                    "strategic_catalysts": ["Dung Quất 2 Q1/2025", "Giá thép thế giới phục hồi", "Giải ngân đầu tư công"],
+                    "risk_assessment": ["Giá nguyên liệu quặng sắt", "Biến động tỷ giá USD"]
+                },
+                "SSI": {
+                    "health_score": 85,
+                    "growth_pillars": [
+                        {"title": "Nâng hạng Thị trường", "content": "Hưởng lợi lớn nhất khi thị trường VN được nâng hạng lên Emerging Markets."},
+                        {"title": "Hệ thống KRX", "content": "Triển khai KRX giúp tăng thanh khoản và các sản phẩm mới."},
+                        {"title": "Thị phần Môi giới", "content": "Duy trì vị thế dẫn đầu trong nhóm khách hàng tổ chức."}
+                    ],
+                    "strategic_catalysts": ["Vận hành KRX", "Lãi suất giảm", "Dòng vốn ngoại quay lại"],
+                    "risk_assessment": ["Thanh khoản thị trường sụt giảm", "Cạnh tranh phí giao dịch"]
+                },
+                "VCB": {
+                    "health_score": 95,
+                    "growth_pillars": [
+                        {"title": "Chất lượng Tài sản", "content": "Tỷ lệ nợ xấu (NPL) thấp nhất hệ thống ngân hàng."},
+                        {"title": "Phát hành riêng lẻ", "content": "Kế hoạch phát hành cho cổ đông ngoại giúp tăng vốn điều lệ."},
+                        {"title": "Bancassurance", "content": "Đẩy mạnh doanh thu phí từ bảo hiểm và dịch vụ số."}
+                    ],
+                    "strategic_catalysts": ["Phát hành riêng lẻ 6.5%", "Lợi nhuận tỷ đô", "Dẫn đầu chuyển đổi số"],
+                    "risk_assessment": ["Nợ xấu tiềm ẩn ngành BĐS", "Biên lãi thuần (NIM) thu hẹp"]
                 }
             }
-            return catalysts.get(ticker, {"health_score": 75, "growth_pillars": [], "strategic_catalysts": [], "risk_assessment": []})
+            
+            # Default response for other tickers to avoid empty sections
+            default_data = {
+                "health_score": 78,
+                "growth_pillars": [
+                    {"title": f"Vị thế Ngành {ticker}", "content": "Duy trì thị phần ổn định và nền tảng tài chính lành mạnh."},
+                    {"title": "Chuyển đổi số", "content": "Tăng cường ứng dụng công nghệ để tối ưu hóa quy trình vận hành."},
+                    {"title": "Tối ưu Chi phí", "content": "Cải thiện biên lợi nhuận thông qua quản lý chi phí chặt chẽ."}
+                ],
+                "strategic_catalysts": ["Kết quả kinh doanh quý tới", "Dòng tiền thông minh", "Tín hiệu kỹ thuật tích cực"],
+                "risk_assessment": ["Biến động kinh tế vĩ mô", "Cạnh tranh trong ngành"]
+            }
+            
+            return catalysts.get(ticker, default_data)
 
     async def _heartbeat_task(self):
         msgs = ["AI Engine Online", "Scanning Patterns...", "Monitoring Liquidity..."]
