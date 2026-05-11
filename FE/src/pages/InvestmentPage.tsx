@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Target, Globe, Activity, Shield, Zap, Briefcase } from 'lucide-react';
+import StrategicPage from './StrategicPage';
 
 const API_BASE = 'http://127.0.0.1:8001/api';
 
@@ -38,6 +39,7 @@ const InvestmentPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) =>
 
   return (
     <div className="flex flex-col gap-10">
+      <StrategicPage activeTicker={activeTicker} />
       
       {/* MACRO RADAR & CYCLE MAP */}
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
