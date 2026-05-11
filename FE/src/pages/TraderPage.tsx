@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
-import { Terminal, Activity, LineChart, TrendingUp, Brain, Send, Loader2 } from 'lucide-react';
+import { Activity, LineChart, TrendingUp, Brain, Send, Loader2 } from 'lucide-react';
 import { createChart, ColorType } from 'lightweight-charts';
 import AIQuantPage from './AIQuantPage';
 
 const API_BASE = 'http://127.0.0.1:8001/api';
 
 const TraderPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
-  const [logs, setLogs] = useState<string[]>([]);
   const [botRunning, setBotRunning] = useState(false);
   const [balance, setBalance] = useState(0);
   const [trades, setTrades] = useState<any[]>([]);
@@ -15,17 +14,9 @@ const TraderPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiAnswer, setAiAnswer] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
-  const terminalRef = useRef<HTMLDivElement>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<any>(null);
   const chartSeriesRef = useRef<any>(null);
-
-  useEffect(() => {
-    // Thử dùng localhost cho websocket
-    const ws = new WebSocket('ws://127.0.0.1:8001/ws/ai-logs');
-    ws.onmessage = (e) => setLogs(prev => [...prev, e.data].slice(-100));
-    return () => ws.close();
-  }, []);
 
   const fetchData = async () => {
     const safeGet = async (url: string, fallback: any) => {
@@ -133,7 +124,6 @@ const TraderPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
         context: { signals }
       });
       setAiAnswer(res.data?.answer || 'No response from Codex Advisor.');
-      setLogs(prev => [...prev, `[Codex Advisor] ${prompt}`].slice(-100));
     } catch (e: any) {
       setAiAnswer(e?.response?.data?.detail || e?.message || 'Codex Advisor request failed.');
     } finally {
@@ -145,32 +135,8 @@ const TraderPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
     <div className="flex flex-col gap-10">
     <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
       
-      {/* COLUMN 1 & 2: COMMAND CENTER */}
+      {/* COLUMN 1 & 2: CODEX ADVISOR */}
       <div className="xl:col-span-2 flex flex-col gap-6">
-        <div className="terminal-card bg-black p-0 overflow-hidden flex flex-col h-[650px] border-blue-500/20 shadow-2xl shadow-blue-900/10">
-           <div className="bg-slate-900 px-6 py-4 flex items-center justify-between border-b border-white/5">
-              <div className="flex items-center gap-3 text-blue-400">
-                 <Terminal size={18} />
-                 <h3 className="font-black text-[10px] uppercase tracking-[0.2em]">AI Command Center v4.0</h3>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 rounded border border-emerald-500/20">
-                 <div className="h-1 w-1 bg-emerald-500 rounded-full animate-pulse"></div>
-                 <span className="text-[8px] text-emerald-400 font-black uppercase">Core Online</span>
-              </div>
-           </div>
-           <div ref={terminalRef} className="flex-1 overflow-y-auto p-6 font-mono text-[11px] space-y-1.5 custom-scrollbar">
-              {logs.map((log, i) => (
-                <div key={i} className="flex gap-4 group hover:bg-white/5 transition-colors px-2 py-0.5 rounded">
-                   <span className="text-slate-700 select-none">{i.toString().padStart(3, '0')}</span>
-                   <p className="text-emerald-500/90 leading-tight">
-                      <span className="text-emerald-800 mr-2">{" >>> "}</span>{log}
-                   </p>
-                </div>
-              ))}
-              <div className="h-4 w-2 bg-emerald-500/50 animate-pulse mt-2 ml-10"></div>
-           </div>
-        </div>
-
         <div className="terminal-card p-6 flex flex-col gap-4 border-cyan-500/20">
            <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 text-cyan-400">
