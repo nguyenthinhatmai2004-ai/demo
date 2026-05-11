@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType } from 'lightweight-charts';
 import axios from 'axios';
-import { Cpu, Shield } from 'lucide-react';
+import { Cpu } from 'lucide-react';
 
 const API_BASE = 'http://127.0.0.1:8001/api';
 
@@ -41,8 +41,8 @@ const ProprietaryTechnicalChart: React.FC<ProprietaryTechnicalChartProps> = ({ t
       borderVisible: false, wickUpColor: '#10b981', wickDownColor: '#f43f5e',
     });
 
-    const ema20 = chart.addLineSeries({ color: 'rgba(59, 130, 246, 0.6)', lineWidth: 1.5, title: 'EMA 20' });
-    const ema50 = chart.addLineSeries({ color: 'rgba(245, 158, 11, 0.6)', lineWidth: 1.5, title: 'EMA 50' });
+    const ema20 = chart.addLineSeries({ color: 'rgba(59, 130, 246, 0.6)', lineWidth: 1, title: 'EMA 20' });
+    const ema50 = chart.addLineSeries({ color: 'rgba(245, 158, 11, 0.6)', lineWidth: 1, title: 'EMA 50' });
 
     const volumeSeries = chart.addHistogramSeries({
       color: '#3b82f6',
@@ -56,7 +56,7 @@ const ProprietaryTechnicalChart: React.FC<ProprietaryTechnicalChartProps> = ({ t
 
     const rsiSeries = chart.addLineSeries({
       color: '#a855f7',
-      lineWidth: 1.5,
+      lineWidth: 1,
       title: 'RSI (14)',
       priceScaleId: 'rsi',
     });

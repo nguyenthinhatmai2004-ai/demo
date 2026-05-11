@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
-  TrendingUp, Briefcase, Zap, Bell, User, Search, Globe, Activity, Terminal
+  TrendingUp, Briefcase, Zap, Bell, User, Search, Activity, Terminal
 } from 'lucide-react';
 import AnalystPage from './pages/AnalystPage';
 import InvestmentPage from './pages/InvestmentPage';
@@ -12,14 +12,14 @@ const API_BASE = 'http://127.0.0.1:8001/api';
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'analyst' | 'investment' | 'trader'>('analyst');
   const [activeTicker, setActiveTicker] = useState('FPT');
-  const [balance, setBalance] = useState(1250000000);
+  const [balance, setBalance] = useState(0);
   const [tickerTape, setTickerTape] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchBalance = async () => {
       try {
         const res = await axios.get(`${API_BASE}/account/balance`);
-        setBalance(res.data.balance || 1250000000);
+        setBalance(res.data.balance || 0);
       } catch (e) {
         console.error("Balance fetch error", e);
       }

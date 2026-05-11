@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
-  Newspaper, Activity, BarChart2, Zap, TrendingUp, Shield, Cpu, 
-  ChevronRight, Calculator, ExternalLink, PieChart, Target, 
-  BarChart3, Award, AlertTriangle, Clock, ThumbsUp, Layers, 
-  FileText, Briefcase, Globe, Info, Download, Copy, Plus
+  Activity, Zap, TrendingUp, Shield, 
+  Calculator, ExternalLink, PieChart, Target, 
+  Award, AlertTriangle, Clock, 
+  FileText, Globe, Download, Plus
 } from 'lucide-react';
 import ProprietaryFinancialChart from '../components/ProprietaryFinancialChart';
 import ProprietaryTechnicalChart from '../components/ProprietaryTechnicalChart';
@@ -12,8 +12,6 @@ import ProprietaryTechnicalChart from '../components/ProprietaryTechnicalChart';
 const API_BASE = 'http://127.0.0.1:8001/api';
 
 const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
-  const [tickerNews, setTickerNews] = useState<any[]>([]);
-  const [specialEvents, setSpecialEvents] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
   const [prospects, setProspects] = useState<any>(null);
   const [ratios, setRatios] = useState<any>(null);
@@ -36,9 +34,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
 
     const ticker = activeTicker.toUpperCase();
     
-    const [news, spec, reportsRes, prospectsRes, ratiosRes, valuationRes, techRes, quoteRes, scannerRes] = await Promise.all([
-      safeGet(`${API_BASE}/news/${ticker}`, []),
-      safeGet(`${API_BASE}/news/special-events`, []),
+    const [reportsRes, prospectsRes, ratiosRes, valuationRes, techRes, quoteRes, scannerRes] = await Promise.all([
       safeGet(`${API_BASE}/analysis/reports/${ticker}`, []),
       safeGet(`${API_BASE}/analysis/prospects/${ticker}`, null),
       safeGet(`${API_BASE}/finance/ratios/${ticker}`, null),
@@ -48,8 +44,6 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
       safeGet(`${API_BASE}/market/scanner`, [])
     ]);
 
-    setTickerNews(news);
-    setSpecialEvents(spec);
     setReports(reportsRes);
     setProspects(prospectsRes);
     setRatios(ratiosRes);
@@ -83,6 +77,9 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
       default: return 'text-slate-400 bg-slate-800/50 border-slate-700';
     }
   };
+
+  const latestReportDate = reports?.[0]?.date || new Date().toLocaleString('vi-VN');
+  const researchId = `${activeTicker.toUpperCase()}-${new Date().getFullYear()}-AUTO`;
 
   return (
     <div className="flex gap-8 max-w-[1600px] mx-auto relative">
@@ -498,7 +495,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                              {(r.target_price || prospects?.consensus?.avg_target).toLocaleString()} ₫
                           </td>
                           <td className="p-6 border-b border-slate-800/50 text-right text-emerald-500 font-black tabular-nums">
-                             +{(r.upside || 15.5)}%
+                             +{(r.upside ?? prospects?.upside ?? 0)}%
                           </td>
                           <td className="p-6 border-b border-slate-800/50 text-center">
                              <a href={r.link} target="_blank" className="p-2 hover:bg-blue-600/20 rounded-full transition-colors inline-block text-blue-500">
@@ -551,11 +548,11 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
               <div className="flex items-center gap-8 mt-4 pt-6 border-t border-white/5">
                  <div className="flex flex-col gap-1">
                     <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Thời gian cập nhật</span>
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-tight">28/04/2026 | 09:50 AM</span>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-tight">{latestReportDate}</span>
                  </div>
                  <div className="flex flex-col gap-1">
                     <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Research ID</span>
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-tight">AX-5502-CORE</span>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-tight">{researchId}</span>
                  </div>
               </div>
            </div>

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
-import { Terminal, Zap, Activity, LineChart, Shield, BarChart2, Clock, Cpu, Play, Square, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Terminal, Activity, LineChart, TrendingUp, Brain, Send, Loader2 } from 'lucide-react';
 import { createChart, ColorType } from 'lightweight-charts';
 
 const API_BASE = 'http://127.0.0.1:8001/api';
@@ -11,8 +11,13 @@ const TraderPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   const [balance, setBalance] = useState(0);
   const [trades, setTrades] = useState<any[]>([]);
   const [signals, setSignals] = useState<any>(null);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiAnswer, setAiAnswer] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<any>(null);
+  const chartSeriesRef = useRef<any>(null);
 
   useEffect(() => {
     // Thử dùng localhost cho websocket
@@ -34,7 +39,7 @@ const TraderPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
 
     const ticker = activeTicker.toUpperCase();
     const [balRes, historyRes, statusRes, signalsRes] = await Promise.all([
-      safeGet(`${API_BASE}/account/balance`, { balance: 1250000000 }),
+      safeGet(`${API_BASE}/account/balance`, { balance: 0 }),
       safeGet(`${API_BASE}/bot/trades`, []),
       safeGet(`${API_BASE}/bot/status`, { running: true }),
       safeGet(`${API_BASE}/analysis/trading-signals/${ticker}`, null)
@@ -52,6 +57,26 @@ const TraderPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
     return () => clearInterval(interval);
   }, [activeTicker]);
 
+  const equityChartData = useMemo(() => {
+    if (!Array.isArray(trades) || trades.length === 0) {
+      return [];
+    }
+
+    const orderedTrades = [...trades]
+      .filter((trade: any) => trade?.timestamp)
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+    let cumulativePnl = 0;
+    return orderedTrades.map((trade: any) => {
+      const pnl = typeof trade?.pnl === 'number' ? trade.pnl : 0;
+      cumulativePnl += pnl;
+      return {
+        time: new Date(trade.timestamp).toISOString().slice(0, 10),
+        value: balance + cumulativePnl
+      };
+    });
+  }, [trades, balance]);
+
   useEffect(() => {
     if (!chartContainerRef.current) return;
     const chart = createChart(chartContainerRef.current, {
@@ -61,21 +86,58 @@ const TraderPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
       height: 300,
     });
     const series = chart.addAreaSeries({ lineColor: '#3b82f6', topColor: 'rgba(59, 130, 246, 0.2)', bottomColor: 'transparent', lineWidth: 2 });
-    series.setData([
-      { time: '2026-04-01', value: 100 },
-      { time: '2026-04-05', value: 105 },
-      { time: '2026-04-10', value: 103 },
-      { time: '2026-04-15', value: 112 },
-      { time: '2026-04-19', value: 115 },
-    ]);
-    return () => chart.remove();
+    chartRef.current = chart;
+    chartSeriesRef.current = series;
+
+    const handleResize = () => {
+      if (chartContainerRef.current && chartRef.current) {
+        chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
+      }
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      chartRef.current = null;
+      chartSeriesRef.current = null;
+      chart.remove();
+    };
   }, []);
 
-  const executeRealTrade = async (ticker: string, side: string, price: number) => {
+  useEffect(() => {
+    if (!chartSeriesRef.current) return;
+
+    if (equityChartData.length > 0) {
+      chartSeriesRef.current.setData(equityChartData);
+      chartRef.current?.timeScale().fitContent();
+      return;
+    }
+
+    chartSeriesRef.current.setData([
+      { time: new Date().toISOString().slice(0, 10), value: balance || 0 }
+    ]);
+    chartRef.current?.timeScale().fitContent();
+  }, [equityChartData, balance]);
+
+  const askCodex = async () => {
+    const prompt = aiPrompt.trim();
+    if (!prompt || aiLoading) return;
+
+    setAiLoading(true);
+    setAiAnswer('');
     try {
-      const res = await axios.post(`${API_BASE}/trader/execute`, { ticker, side, price });
-      if (res.data.status === 'SUCCESS') alert(`ORDER SUCCESS: ID ${res.data.order_id}`);
-    } catch { alert("ORDER FAILED"); }
+      const res = await axios.post(`${API_BASE}/ai/codex`, {
+        ticker: activeTicker.toUpperCase(),
+        prompt,
+        context: { signals }
+      });
+      setAiAnswer(res.data?.answer || 'No response from Codex Advisor.');
+      setLogs(prev => [...prev, `[Codex Advisor] ${prompt}`].slice(-100));
+    } catch (e: any) {
+      setAiAnswer(e?.response?.data?.detail || e?.message || 'Codex Advisor request failed.');
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   return (
@@ -105,6 +167,42 @@ const TraderPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
               ))}
               <div className="h-4 w-2 bg-emerald-500/50 animate-pulse mt-2 ml-10"></div>
            </div>
+        </div>
+
+        <div className="terminal-card p-6 flex flex-col gap-4 border-cyan-500/20">
+           <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 text-cyan-400">
+                 <Brain size={18} />
+                 <h3 className="font-black text-[10px] uppercase tracking-[0.2em]">Codex Advisor</h3>
+              </div>
+              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{activeTicker} Context</span>
+           </div>
+
+           <div className="flex gap-3">
+              <input
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') askCodex();
+                }}
+                placeholder={`Ask about ${activeTicker}: risk, entry, thesis...`}
+                className="min-w-0 flex-1 bg-black/30 border border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50"
+              />
+              <button
+                onClick={askCodex}
+                disabled={aiLoading || !aiPrompt.trim()}
+                className="h-11 w-11 shrink-0 rounded-xl bg-cyan-600 text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+                title="Ask Codex Advisor"
+              >
+                {aiLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              </button>
+           </div>
+
+           {aiAnswer && (
+             <div className="bg-black/30 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 leading-relaxed whitespace-pre-wrap max-h-72 overflow-y-auto custom-scrollbar">
+                {aiAnswer}
+             </div>
+           )}
         </div>
       </div>
 

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Target, Globe, BarChart3, ChevronUp, ChevronDown, Activity, Shield, TrendingUp, Zap, Briefcase } from 'lucide-react';
-import FireAntChart from '../components/FireAntChart';
+import { Target, Globe, Activity, Shield, Zap, Briefcase } from 'lucide-react';
 
 const API_BASE = 'http://127.0.0.1:8001/api';
 
@@ -21,7 +20,6 @@ const InvestmentPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) =>
       }
     };
 
-    const ticker = activeTicker.toUpperCase();
     const [strat, macroRes, accountRes] = await Promise.all([
       safeGet(`${API_BASE}/investment/strategy`, null),
       safeGet(`${API_BASE}/analysis/macro`, null),
@@ -166,18 +164,23 @@ const InvestmentPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) =>
                <Briefcase size={18} /> Danh mục Hiện tại
             </h3>
             <div className="flex flex-col gap-4">
-               {accountData?.positions ? Object.entries(accountData.positions).map(([t, q]: any) => (
+               {accountData?.positions ? Object.entries(accountData.positions).map(([t, q]: any) => {
+                  const pnlPct = accountData?.position_metrics?.[t]?.pnl_pct ?? 0;
+                  const isPositive = pnlPct >= 0;
+                  return (
                   <div key={t} className="p-4 bg-black/20 rounded-xl border border-gray-800 flex items-center justify-between group hover:border-blue-500/30 transition-all">
                      <div className="flex items-center gap-4">
                         <div className="h-10 w-10 bg-blue-500/10 rounded-lg flex items-center justify-center font-bold text-blue-400">{t}</div>
                         <p className="text-sm font-bold text-white tabular-nums">{q.toLocaleString()} CP</p>
                      </div>
                      <div className="text-right">
-                        <p className="text-sm font-black text-emerald-400">+5.2%</p>
+                        <p className={`text-sm font-black ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {isPositive ? '+' : ''}{pnlPct.toFixed(2)}%
+                        </p>
                         <span className="text-[8px] font-black text-slate-600 uppercase">Lãi/Lỗ</span>
                      </div>
                   </div>
-               )) : <p className="text-slate-600 italic text-xs">Chưa có vị thế đang mở.</p>}
+               )}) : <p className="text-slate-600 italic text-xs">Chưa có vị thế đang mở.</p>}
             </div>
          </section>
       </div>

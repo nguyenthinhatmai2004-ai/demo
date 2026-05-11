@@ -9,12 +9,13 @@ from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, WebSocket,
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 from dotenv import load_dotenv
-from vnstock import Vnstock, Quote
+from pydantic import BaseModel
+from vnstock import Quote
 
 # Import database components
 from database import create_db_and_tables, get_session, News, MacroIndicator, AITradeLog, Watchlist, StrategyScore, engine
 from scraper import NewsAggregator
-from services import StrategyEvaluator, MacroEngine, QuantTrader, TelegramService, BrokerTrader
+from services import StrategyEvaluator, MacroEngine, QuantTrader, TelegramService, BrokerTrader, OpenAICodexAdvisor
 
 # Load environment variables
 load_dotenv()
@@ -46,9 +47,6 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-# Initialize vnstock v3 global instance
-vst = Vnstock()
-
 class VNStockTerminalApp:
     def __init__(self):
         self.app = FastAPI(
@@ -70,6 +68,17 @@ class VNStockTerminalApp:
         )
 
     def _setup_routes(self):
+        class TradeRequest(BaseModel):
+            ticker: str
+            side: str
+            price: float
+            quantity: int = 100
+
+        class CodexRequest(BaseModel):
+            ticker: str
+            prompt: str
+            context: Optional[Dict] = None
+
         @self.app.on_event("startup")
         def on_startup():
             logger.info("Starting up VN Stock Terminal Engine (LIVE MODE)...")
@@ -162,6 +171,30 @@ class VNStockTerminalApp:
                 base = max(close_p, 0.1)
             return history
 
+        @self.app.get("/api/market/intraday/{ticker}")
+        async def get_intraday(ticker: str):
+            ticker = ticker.upper()
+            try:
+                q = Quote(symbol=ticker, source='KBS')
+                df = q.history(length='10D', interval='1D')
+                if df is None or df.empty:
+                    return []
+                df = df.sort_values(by='time', ascending=True).tail(30)
+                return [
+                    {
+                        "time": str(row["time"]).split(" ")[0],
+                        "open": float(row["open"]),
+                        "high": float(row["high"]),
+                        "low": float(row["low"]),
+                        "close": float(row["close"]),
+                        "volume": int(row["volume"])
+                    }
+                    for _, row in df.iterrows()
+                ]
+            except Exception as e:
+                logger.error(f"Intraday fetch error for {ticker}: {e}")
+                return []
+
         @self.app.get("/api/market/quote/{ticker}")
         async def get_realtime_quote(ticker: str):
             ticker = ticker.upper()
@@ -203,17 +236,112 @@ class VNStockTerminalApp:
             engine = MacroEngine(db)
             return engine.get_market_phase()
 
+        @self.app.post("/api/ai/codex")
+        async def ask_codex(payload: CodexRequest, db: Session = Depends(get_session)):
+            ticker = payload.ticker.upper().strip()
+            prompt = payload.prompt.strip()
+            if not ticker:
+                raise HTTPException(status_code=400, detail="Ticker is required")
+            if not prompt:
+                raise HTTPException(status_code=400, detail="Prompt is required")
+
+            market_context = payload.context or {}
+            try:
+                quote = Quote(symbol=ticker, source='KBS')
+                df = quote.history(length='3M', interval='1D')
+                if df is not None and not df.empty:
+                    df = df.sort_values(by='time', ascending=True)
+                    latest = df.iloc[-1]
+                    prev = df.iloc[-2] if len(df) >= 2 else latest
+                    market_context["quote"] = {
+                        "price": float(latest["close"]),
+                        "change_pct": round(((latest["close"] - prev["close"]) / prev["close"]) * 100, 2) if prev["close"] else 0,
+                        "volume": int(latest["volume"]),
+                        "date": str(latest["time"]).split(" ")[0],
+                    }
+                    market_context["technicals"] = {
+                        "ma20": round(float(df["close"].tail(20).mean()), 2),
+                        "ma50": round(float(df["close"].tail(50).mean()), 2) if len(df) >= 50 else None,
+                        "high_3m": round(float(df["high"].max()), 2),
+                        "low_3m": round(float(df["low"].min()), 2),
+                    }
+            except Exception as e:
+                logger.warning(f"Codex context quote fetch failed for {ticker}: {e}")
+
+            try:
+                evaluator = StrategyEvaluator(db)
+                sepa_score, sepa_details = evaluator.get_sepa_score(ticker)
+                market_context["strategy_score"] = {
+                    "sepa_score": sepa_score,
+                    "sepa": sepa_details,
+                }
+            except Exception as e:
+                logger.warning(f"Codex context strategy fetch failed for {ticker}: {e}")
+
+            try:
+                market_context["macro"] = MacroEngine(db).get_market_phase()
+            except Exception as e:
+                logger.warning(f"Codex context macro fetch failed: {e}")
+
+            advisor = OpenAICodexAdvisor()
+            return await advisor.ask(prompt=prompt, ticker=ticker, context=market_context)
+
         # --- FINANCE & VALUATION ---
         @self.app.get("/api/finance/ratios/{ticker}")
         async def get_ratios(ticker: str):
             ticker = ticker.upper()
             ratios = {
-                "FPT": {"pe": 22.4, "pb": 5.8, "roe": 28.5, "margin": 14.2, "debt_equity": 0.42, "eps": 6050, "status": {"pe": "warning", "roe": "good", "margin": "good", "debt_equity": "good"}},
-                "SSI": {"pe": 18.2, "pb": 2.1, "roe": 14.5, "margin": 32.8, "debt_equity": 1.25, "eps": 2100, "status": {"pe": "neutral", "roe": "good", "margin": "good", "debt_equity": "warning"}},
-                "HPG": {"pe": 16.5, "pb": 1.7, "roe": 11.8, "margin": 8.5, "debt_equity": 0.62, "eps": 1750, "status": {"pe": "good", "roe": "neutral", "margin": "warning", "debt_equity": "good"}},
-                "VCB": {"pe": 14.8, "pb": 2.8, "roe": 21.2, "margin": 42.5, "debt_equity": 0.15, "eps": 6250, "status": {"pe": "good", "roe": "good", "margin": "good", "debt_equity": "good"}}
+                "FPT": {
+                    "pe": 22.4, "pb": 5.8, "roe": 28.5, "margin": 14.2, "debt_equity": 0.42, "eps": 6050,
+                    "status": {"pe": "warning", "roe": "good", "margin": "good", "debt_equity": "good"},
+                    "notes": {
+                        "pe": "Trung bình ngành: 14.2x",
+                        "roe": "Khả năng sinh lời vượt trội",
+                        "margin": "Biên lợi nhuận gộp cải thiện",
+                        "debt_equity": "Đòn bẩy an toàn"
+                    }
+                },
+                "SSI": {
+                    "pe": 18.2, "pb": 2.1, "roe": 14.5, "margin": 32.8, "debt_equity": 1.25, "eps": 2100,
+                    "status": {"pe": "neutral", "roe": "good", "margin": "good", "debt_equity": "warning"},
+                    "notes": {
+                        "pe": "Định giá trung tính theo chu kỳ",
+                        "roe": "ROE ổn định theo chu kỳ thị trường",
+                        "margin": "Biên lợi nhuận môi giới cải thiện",
+                        "debt_equity": "Đòn bẩy cao, cần quản trị rủi ro"
+                    }
+                },
+                "HPG": {
+                    "pe": 16.5, "pb": 1.7, "roe": 11.8, "margin": 8.5, "debt_equity": 0.62, "eps": 1750,
+                    "status": {"pe": "good", "roe": "neutral", "margin": "warning", "debt_equity": "good"},
+                    "notes": {
+                        "pe": "Định giá hấp dẫn so với lịch sử",
+                        "roe": "ROE cần xác nhận khi chu kỳ hồi phục",
+                        "margin": "Biên lợi nhuận còn chịu áp lực đầu vào",
+                        "debt_equity": "Cấu trúc vốn trong vùng an toàn"
+                    }
+                },
+                "VCB": {
+                    "pe": 14.8, "pb": 2.8, "roe": 21.2, "margin": 42.5, "debt_equity": 0.15, "eps": 6250,
+                    "status": {"pe": "good", "roe": "good", "margin": "good", "debt_equity": "good"},
+                    "notes": {
+                        "pe": "Định giá hợp lý cho ngân hàng đầu ngành",
+                        "roe": "Hiệu quả sinh lời thuộc nhóm dẫn đầu",
+                        "margin": "NIM ổn định với chất lượng tài sản tốt",
+                        "debt_equity": "Đòn bẩy thấp, bộ đệm rủi ro tốt"
+                    }
+                }
             }
-            default_ratio = {"pe": 15.0, "pb": 1.5, "roe": 15.0, "margin": 15.0, "debt_equity": 0.5, "eps": 2000, "status": {"pe": "neutral", "roe": "neutral", "margin": "neutral", "debt_equity": "good"}}
+            default_ratio = {
+                "pe": 15.0, "pb": 1.5, "roe": 15.0, "margin": 15.0, "debt_equity": 0.5, "eps": 2000,
+                "status": {"pe": "neutral", "roe": "neutral", "margin": "neutral", "debt_equity": "good"},
+                "notes": {
+                    "pe": "Đang cập nhật theo ngành",
+                    "roe": "Đang cập nhật theo chu kỳ",
+                    "margin": "Đang cập nhật biên lợi nhuận",
+                    "debt_equity": "Đang cập nhật cơ cấu vốn"
+                }
+            }
             return ratios.get(ticker, default_ratio)
 
         @self.app.get("/api/market/scanner")
@@ -283,15 +411,198 @@ class VNStockTerminalApp:
             return {
                 "mode": "GROWTH_HUNTING",
                 "market_timing": "Cơ hội giải ngân cao - Stage 2 xác nhận",
+                "ui": {
+                    "table_title": "Bộ lọc Siêu cổ phiếu CANSLIM & SEPA",
+                    "search_mode_label": "Chế độ Tìm kiếm Chủ động"
+                },
                 "focus_list": [
                     {"ticker": "FPT", "canslim_score": 92, "tech_status": "Stage 2 / Pocket Pivot", "vsa_signal": "Cạn cung", "entry": "134.5", "potential": "+25%", "sepa_verdict": "BUY"},
                     {"ticker": "HPG", "canslim_score": 85, "tech_status": "Stage 1 / VCP", "vsa_signal": "Kiệt cung", "entry": "28.5", "potential": "+35%", "sepa_verdict": "WATCHLIST"},
                     {"ticker": "SSI", "canslim_score": 88, "tech_status": "Stage 2 / Spring", "vsa_signal": "Test Cung", "entry": "37.5", "potential": "+20%", "sepa_verdict": "BUY"}
+                ],
+                "tactical_alerts": [
+                    {
+                        "title": "Xác nhận Pocket Pivot",
+                        "message": "FPT đã vượt qua vùng cung 134.5 với khối lượng lớn. Điểm mua Pocket Pivot cực chuẩn trong nền giá Stage 2.",
+                        "level": "info"
+                    },
+                    {
+                        "title": "Kiệt cung Xác nhận",
+                        "message": "HPG xuất hiện 3 phiên No Supply Bar liên tiếp. Khối lượng cạn kiệt cho thấy lực bán đã hoàn toàn biến mất.",
+                        "level": "positive"
+                    },
+                    {
+                        "title": "VCP Setup",
+                        "message": "Dòng thép và chứng khoán đang hình thành mô hình thu hẹp biên độ VCP chặt chẽ. Chờ đợi nhịp Breakout để mở vị thế.",
+                        "level": "warning"
+                    }
                 ]
             }
 
         @self.app.get("/api/account/balance")
         async def get_balance(): return {"balance": 1250000000}
+
+        @self.app.get("/api/account/positions")
+        async def get_positions(db: Session = Depends(get_session)):
+            try:
+                statement = select(AITradeLog).order_by(AITradeLog.timestamp.asc())
+                trades = db.exec(statement).all()
+
+                positions: Dict[str, int] = {}
+                avg_cost: Dict[str, float] = {}
+                latest_prices: Dict[str, float] = {}
+
+                for trade in trades:
+                    ticker = trade.ticker.upper()
+                    current_qty = positions.get(ticker, 0)
+                    current_cost = avg_cost.get(ticker, 0.0)
+
+                    if trade.side.upper() == "BUY":
+                        total_cost = (current_cost * current_qty) + (trade.price * trade.quantity)
+                        new_qty = current_qty + trade.quantity
+                        positions[ticker] = new_qty
+                        avg_cost[ticker] = total_cost / new_qty if new_qty > 0 else 0.0
+                    elif trade.side.upper() == "SELL":
+                        positions[ticker] = max(0, current_qty - trade.quantity)
+                        if positions[ticker] == 0:
+                            avg_cost[ticker] = 0.0
+
+                    latest_prices[ticker] = trade.price
+
+                clean_positions = {k: v for k, v in positions.items() if v > 0}
+                position_metrics: Dict[str, Dict[str, float]] = {}
+                for ticker, qty in clean_positions.items():
+                    entry_price = avg_cost.get(ticker, 0.0)
+                    mark_price = latest_prices.get(ticker, entry_price)
+                    pnl_pct = ((mark_price - entry_price) / entry_price * 100) if entry_price > 0 else 0.0
+                    position_metrics[ticker] = {
+                        "entry_price": round(entry_price, 2),
+                        "mark_price": round(mark_price, 2),
+                        "pnl_pct": round(pnl_pct, 2)
+                    }
+
+                return {"positions": clean_positions, "position_metrics": position_metrics}
+            except Exception as e:
+                logger.error(f"Failed to build positions: {e}")
+                return {"positions": {}, "position_metrics": {}}
+
+        @self.app.get("/api/bot/trades")
+        async def get_bot_trades(db: Session = Depends(get_session)):
+            try:
+                statement = select(AITradeLog).order_by(AITradeLog.timestamp.desc())
+                trades = db.exec(statement).all()
+                return [
+                    {
+                        "id": t.id,
+                        "ticker": t.ticker,
+                        "side": t.side,
+                        "price": t.price,
+                        "quantity": t.quantity,
+                        "strategy": t.strategy,
+                        "pnl": t.pnl,
+                        "timestamp": t.timestamp.isoformat()
+                    }
+                    for t in trades[:100]
+                ]
+            except Exception as e:
+                logger.error(f"Failed to fetch bot trades: {e}")
+                return []
+
+        @self.app.get("/api/bot/status")
+        async def get_bot_status():
+            return {
+                "running": True,
+                "mode": "LIVE_SIMULATION",
+                "strategy_label": "Multi-Strategy AI Hunter",
+                "baseline_capital": 1000000000
+            }
+
+        @self.app.get("/api/analysis/trading-signals/{ticker}")
+        async def get_trading_signals(ticker: str):
+            ticker = ticker.upper()
+            try:
+                q = Quote(symbol=ticker, source='KBS')
+                df = q.history(length='3M', interval='1D')
+                if df is None or df.empty or len(df) < 20:
+                    raise ValueError("Insufficient signal data")
+
+                df = df.sort_values(by='time', ascending=True)
+                latest = df.iloc[-1]
+                prev = df.iloc[-2]
+                change_pct = float((latest["close"] - prev["close"]) / prev["close"] * 100)
+                volume_ratio = float(latest["volume"] / max(1, df["volume"].tail(20).mean()))
+
+                ma20 = float(df["close"].rolling(20).mean().iloc[-1])
+                ma50 = float(df["close"].rolling(50).mean().iloc[-1]) if len(df) >= 50 else ma20
+                trend_up = latest["close"] > ma20 > ma50
+
+                short_signal = "MUA" if change_pct > 0 and volume_ratio >= 1 else "GIỮ"
+                long_signal = "MUA" if trend_up else "THEO DÕI"
+
+                return {
+                    "short_term": {
+                        "label": "Short-term Momentum",
+                        "signal": short_signal,
+                        "strength": int(min(95, max(40, abs(change_pct) * 20 + volume_ratio * 20))),
+                        "indicators": {
+                            "price_change": f"{change_pct:.2f}%",
+                            "volume_ratio": f"{volume_ratio:.2f}x",
+                            "trend": "up" if change_pct >= 0 else "down"
+                        }
+                    },
+                    "long_term": {
+                        "label": "Long-term Structure",
+                        "signal": long_signal,
+                        "strength": int(80 if trend_up else 55),
+                        "indicators": {
+                            "ma20": round(ma20, 2),
+                            "ma50": round(ma50, 2),
+                            "bias": "bullish" if trend_up else "neutral"
+                        }
+                    }
+                }
+            except Exception as e:
+                logger.error(f"Failed to compute trading signals for {ticker}: {e}")
+                return {
+                    "short_term": {"label": "Short-term Momentum", "signal": "GIỮ", "strength": 50, "indicators": {}},
+                    "long_term": {"label": "Long-term Structure", "signal": "THEO DÕI", "strength": 50, "indicators": {}}
+                }
+
+        @self.app.post("/api/trader/execute")
+        async def execute_trade(payload: TradeRequest, db: Session = Depends(get_session)):
+            ticker = payload.ticker.upper()
+            side = payload.side.upper()
+            if side not in {"BUY", "SELL"}:
+                raise HTTPException(status_code=400, detail="side must be BUY or SELL")
+            if payload.price <= 0 or payload.quantity <= 0:
+                raise HTTPException(status_code=400, detail="price and quantity must be > 0")
+
+            try:
+                broker = BrokerTrader()
+                result = await broker.place_order(
+                    ticker=ticker,
+                    side=side,
+                    quantity=payload.quantity,
+                    price=payload.price
+                )
+
+                trade = AITradeLog(
+                    ticker=ticker,
+                    side=side,
+                    price=payload.price,
+                    quantity=payload.quantity,
+                    strategy="MANUAL_EXECUTION",
+                    pnl=None
+                )
+                db.add(trade)
+                db.commit()
+
+                await manager.broadcast(f"CORE: [MANUAL] {side} {payload.quantity} {ticker} @ {payload.price:,.0f}")
+                return result
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Failed to execute trade: {e}")
+                raise HTTPException(status_code=500, detail="failed to execute trade")
 
         @self.app.get("/api/analysis/technical/{ticker}")
         async def get_technical_analysis(ticker: str):
@@ -399,12 +710,12 @@ class VNStockTerminalApp:
             ticker = ticker.upper()
             reports = {
                 "FPT": [
-                    {"firm": "VNDirect", "title": "FPT: Định giá lại nhờ AI & Bán dẫn", "date": "27/05/2024", "link": "https://www.vndirect.com.vn/cmsupload/beta/Bao-cao-cap-nhat-FPT_270524.pdf"},
-                    {"firm": "SHS", "title": "Cơ hội từ hệ sinh thái AI", "date": "08/04/2025", "link": "https://www.shs.com.vn/Data/Reports/2025/Bao-cao-cap-nhat-FPT_080425.pdf"}
+                    {"firm": "VNDirect", "title": "FPT: Định giá lại nhờ AI & Bán dẫn", "date": "27/05/2024", "link": "https://www.vndirect.com.vn/cmsupload/beta/Bao-cao-cap-nhat-FPT_270524.pdf", "recommendation": "MUA", "target_price": 172000, "upside": 27.2},
+                    {"firm": "SHS", "title": "Cơ hội từ hệ sinh thái AI", "date": "08/04/2025", "link": "https://www.shs.com.vn/Data/Reports/2025/Bao-cao-cap-nhat-FPT_080425.pdf", "recommendation": "KHẢ QUAN", "target_price": 165500, "upside": 22.4}
                 ]
             }
             default_reports = [
-                {"firm": "CafeF", "title": f"Báo cáo phân tích {ticker}", "date": "2026", "link": f"https://cafef.vn/ho-so/{ticker}.chn"}
+                {"firm": "CafeF", "title": f"Báo cáo phân tích {ticker}", "date": "2026", "link": f"https://cafef.vn/ho-so/{ticker}.chn", "recommendation": "TRUNG LẬP", "target_price": 0, "upside": 0}
             ]
             return reports.get(ticker, default_reports)
 
@@ -454,7 +765,9 @@ class VNStockTerminalApp:
                         "avg_target": 165500,
                         "max_target": 180000,
                         "min_target": 155000
-                    }
+                    },
+                    "updated_at": "27/05/2024",
+                    "research_id": "FPT-2026-AUTO"
                 },
                 "HPG": {
                     "company_name": "Tập đoàn Hòa Phát",
@@ -489,7 +802,9 @@ class VNStockTerminalApp:
                         "avg_target": 36800,
                         "max_target": 42000,
                         "min_target": 29500
-                    }
+                    },
+                    "updated_at": "08/04/2025",
+                    "research_id": "HPG-2026-AUTO"
                 }
             }
             
@@ -519,7 +834,9 @@ class VNStockTerminalApp:
                 "risk_assessment": [
                     {"title": "Kinh tế vĩ mô", "impact": "Medium", "content": "Lạm phát và lãi suất ảnh hưởng chi phí vốn."}
                 ],
-                "consensus": {"buy": 5, "hold": 3, "sell": 1, "avg_target": 0, "max_target": 0, "min_target": 0}
+                "consensus": {"buy": 5, "hold": 3, "sell": 1, "avg_target": 0, "max_target": 0, "min_target": 0},
+                "updated_at": datetime.now().strftime("%d/%m/%Y"),
+                "research_id": f"{ticker}-AUTO"
             }
             
             return catalysts.get(ticker, default_data)
@@ -535,4 +852,10 @@ app = terminal.app
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8001,
+        reload=True,
+        reload_excludes=["venv/*", "__pycache__/*", "*.log"],
+    )

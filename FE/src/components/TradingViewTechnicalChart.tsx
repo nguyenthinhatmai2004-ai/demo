@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Maximize2, Zap, Shield, Cpu } from 'lucide-react';
+import { Shield, Cpu } from 'lucide-react';
 
 interface TradingViewTechnicalChartProps {
   ticker: string;

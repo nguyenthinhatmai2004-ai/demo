@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+vnstock
+beautifulsoup4
+httpx
+python-dotenv
+sqlmodel
+websockets
+openai

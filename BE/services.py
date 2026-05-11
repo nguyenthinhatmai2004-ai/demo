@@ -2,6 +2,7 @@ import logging
 import json
 import random
 import os
+import asyncio
 import pandas as pd
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
@@ -249,6 +250,69 @@ class MacroEngine:
         }
 
 import httpx as httpx_async
+
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
+
+
+class OpenAICodexAdvisor:
+    def __init__(self):
+        self.api_key = os.getenv("OPENAI_API_KEY")
+        self.model = os.getenv("OPENAI_MODEL", "gpt-5.2")
+        self.client = OpenAI(api_key=self.api_key) if OpenAI and self.api_key else None
+
+    def is_configured(self) -> bool:
+        return self.client is not None
+
+    async def ask(self, prompt: str, ticker: str, context: Dict) -> Dict:
+        if not self.client:
+            return {
+                "configured": False,
+                "model": self.model,
+                "answer": (
+                    "OpenAI is not configured. Add OPENAI_API_KEY to BE/.env, "
+                    "restart the backend, then ask again."
+                ),
+            }
+
+        instructions = (
+            "You are Codex Advisor inside a Vietnam stock terminal. "
+            "Answer in Vietnamese unless the user asks otherwise. "
+            "Use the supplied market context, be concise, and separate facts from assumptions. "
+            "Do not claim certainty, do not provide guaranteed returns, and include risk controls. "
+            "For trade ideas, include invalidation/stop-loss logic and position-sizing caution."
+        )
+
+        input_text = json.dumps(
+            {
+                "ticker": ticker.upper(),
+                "user_question": prompt,
+                "terminal_context": context,
+            },
+            ensure_ascii=False,
+        )
+
+        try:
+            response = await asyncio.to_thread(
+                self.client.responses.create,
+                model=self.model,
+                instructions=instructions,
+                input=input_text,
+            )
+            return {
+                "configured": True,
+                "model": self.model,
+                "answer": response.output_text,
+            }
+        except Exception as e:
+            logger.error(f"OpenAI Codex Advisor error: {e}")
+            return {
+                "configured": True,
+                "model": self.model,
+                "answer": f"AI request failed: {e}",
+            }
 
 class TelegramService:
     def __init__(self):
