@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { Terminal, Activity, LineChart, TrendingUp, Brain, Send, Loader2 } from 'lucide-react';
 import { createChart, ColorType } from 'lightweight-charts';
+import AIQuantPage from './AIQuantPage';
 
 const API_BASE = 'http://127.0.0.1:8001/api';
 
@@ -141,6 +142,7 @@ const TraderPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   };
 
   return (
+    <div className="flex flex-col gap-10">
     <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
       
       {/* COLUMN 1 & 2: COMMAND CENTER */}
@@ -281,6 +283,8 @@ const TraderPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
             </button>
          </div>
       </div>
+    </div>
+    <AIQuantPage activeTicker={activeTicker} />
     </div>
   );
 };
