@@ -86,10 +86,10 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   ];
 
   const getRecommendationColor = (rec: string) => {
-    if (rec === 'BUY') return 'text-emerald-400 bg-emerald-500/10 border-emerald-400/30';
-    if (rec === 'OUTPERFORM') return 'text-cyan-300 bg-cyan-500/10 border-cyan-400/30';
-    if (rec === 'NEUTRAL') return 'text-amber-300 bg-amber-500/10 border-amber-400/30';
-    if (rec === 'SELL') return 'text-rose-300 bg-rose-500/10 border-rose-400/30';
+    if (rec === 'MUA') return 'text-emerald-400 bg-emerald-500/10 border-emerald-400/30';
+    if (rec === 'KHẢ QUAN') return 'text-cyan-300 bg-cyan-500/10 border-cyan-400/30';
+    if (rec === 'TRUNG LẬP') return 'text-amber-300 bg-amber-500/10 border-amber-400/30';
+    if (rec === 'BÁN') return 'text-rose-300 bg-rose-500/10 border-rose-400/30';
     switch (rec) {
       case 'MUA': return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
       case 'KHẢ QUAN': return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
@@ -219,7 +219,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                     <div className="text-right flex flex-col gap-1">
                        <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Giá mục tiêu (12T)</span>
                        <span className="text-4xl font-black tabular-nums">{(prospects?.target_price || 0).toLocaleString()} <span className="text-lg opacity-60 uppercase">vnd</span></span>
-                       <span className="text-sm font-black text-emerald-500">Upside +{prospects?.upside || 0}%</span>
+                       <span className="text-sm font-black text-emerald-500">Dư địa tăng +{prospects?.upside || 0}%</span>
                     </div>
                  </div>
                  <div className="h-px bg-current opacity-10 w-full"></div>
@@ -277,7 +277,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
         <section className="bg-white/[0.02] border border-slate-800 rounded-3xl p-10 flex flex-col gap-8 shadow-2xl">
            <div className="flex items-center gap-4 text-blue-400">
               <Award size={24} />
-              <h3 className="text-sm font-black uppercase tracking-[0.3em]">Tóm tắt luận điểm đầu tư (Executive Summary)</h3>
+              <h3 className="text-sm font-black uppercase tracking-[0.3em]">Tóm tắt luận điểm đầu tư</h3>
            </div>
            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
               <div className="flex flex-col gap-4">
@@ -317,7 +317,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                  <h3 className="text-sm font-black uppercase tracking-[0.3em]">Phân tích tài chính chuyên sâu</h3>
               </div>
               <div className="px-4 py-1 bg-slate-900 border border-slate-800 rounded-full">
-                 <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Financial Engine v5.0</span>
+                 <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Mô hình tài chính v5.0</span>
               </div>
            </div>
            
@@ -435,7 +435,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
            <div className="flex items-center justify-between border-b border-white/5 pb-6">
               <div className="flex items-center gap-3 text-orange-400">
                  <Target size={24} />
-                 <h3 className="text-sm font-black uppercase tracking-[0.3em]">Mô hình định giá (Valuation Matrix)</h3>
+                 <h3 className="text-sm font-black uppercase tracking-[0.3em]">Mô hình định giá</h3>
               </div>
               <div className="text-right">
                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Định giá Fair Value</p>
@@ -465,7 +465,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
            {valuation?.valuation_bridge && (
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-black/35 border border-white/5 rounded-2xl p-6">
-                   <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Valuation bridge</span>
+                   <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Cầu nối định giá</span>
                    <div className="mt-5 grid grid-cols-2 gap-3">
                       {valuation.valuation_bridge.map((item: any) => (
                         <div key={item.label} className="rounded-xl border border-slate-800 bg-slate-950/80 p-4">
@@ -479,7 +479,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                    </div>
                 </div>
                 <div className="bg-black/35 border border-white/5 rounded-2xl p-6">
-                   <span className="text-[10px] font-black text-cyan-300 uppercase tracking-widest">Scenario-weighted target</span>
+                   <span className="text-[10px] font-black text-cyan-300 uppercase tracking-widest">Giá mục tiêu theo kịch bản</span>
                    <div className="mt-5 flex flex-col gap-3">
                       {Object.entries(valuation.scenario || {}).map(([name, item]: any) => (
                          <div key={name} className="grid grid-cols-[84px_1fr_auto] items-center gap-4 rounded-xl border border-slate-800 bg-slate-950/80 p-4">
@@ -538,7 +538,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                        <th className="p-6 text-left border-b border-slate-800">Tổ chức phân tích</th>
                        <th className="p-6 text-center border-b border-slate-800">Khuyến nghị</th>
                        <th className="p-6 text-right border-b border-slate-800">Giá mục tiêu</th>
-                       <th className="p-6 text-right border-b border-slate-800">Upside</th>
+                       <th className="p-6 text-right border-b border-slate-800">Dư địa tăng</th>
                        <th className="p-6 text-center border-b border-slate-800">Thao tác</th>
                     </tr>
                  </thead>
@@ -576,7 +576,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
         <section id="risks" className="bg-rose-600/5 border border-rose-500/10 rounded-3xl p-10 flex flex-col gap-8 shadow-xl">
            <div className="flex items-center gap-4 text-rose-500">
               <AlertTriangle size={24} />
-              <h3 className="text-sm font-black uppercase tracking-[0.3em]">Ma trận rủi ro (Risk Assessment)</h3>
+              <h3 className="text-sm font-black uppercase tracking-[0.3em]">Ma trận rủi ro</h3>
            </div>
            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {(prospects?.risk_assessment || []).map((r: any, i: number) => (
@@ -584,7 +584,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                     <div className="flex justify-between items-center">
                        <h4 className="text-xs font-black text-slate-200 uppercase tracking-widest">{r.title}</h4>
                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
-                          r.impact === 'High' ? 'bg-rose-500 text-white' : 'bg-orange-500/20 text-orange-500'
+                          r.impact === 'Cao' ? 'bg-rose-500 text-white' : 'bg-orange-500/20 text-orange-500'
                        }`}>
                           Impact: {r.impact}
                        </span>

@@ -89,10 +89,10 @@ def _atr(df: pd.DataFrame, period: int = 14) -> float:
 
 def _quality_from_growth(growth: float) -> str:
     if growth >= 25:
-        return "High Quality"
+        return "Chất lượng cao"
     if growth >= 0:
-        return "Medium Quality"
-    return "Low Quality"
+        return "Chất lượng trung bình"
+    return "Chất lượng thấp"
 
 
 def build_quant_stock(ticker: str) -> Optional[Dict]:
@@ -139,9 +139,9 @@ def build_quant_stock(ticker: str) -> Optional[Dict]:
         "summary": "Gia, khoi luong va chi bao ky thuat duoc tinh tu backend qua vnstock.",
         "url": f"https://s.cafef.vn/hose/{ticker}.chn",
         "publishedAt": datetime.utcnow().isoformat(),
-        "category": "Sector Tailwind" if change_pct >= 0 else "Debt Risk",
+        "category": "Yếu tố hỗ trợ ngành" if change_pct >= 0 else "Rủi ro nợ vay",
         "sentiment": "Positive" if change_pct >= 0 else "Negative",
-        "impact": "Short-term catalyst" if change_pct >= 0 else "Risk event",
+        "impact": "Catalyst ngắn hạn" if change_pct >= 0 else "Sự kiện rủi ro",
         "relatedMetrics": {"changePct": change_pct, "volumeRatio": round(volume / avg_volume20, 2)},
     }
 
@@ -348,10 +348,10 @@ RESEARCH_MODELS: Dict[str, Dict] = {
     "FPT": {
         "company_name": "FPT Corporation",
         "exchange": "HOSE",
-        "industry": "Information Technology",
-        "recommendation": "BUY",
-        "risk_level": "Medium",
-        "holding_period": "12 months",
+        "industry": "Công nghệ thông tin",
+        "recommendation": "MUA",
+        "risk_level": "Trung bình",
+        "holding_period": "12 tháng",
         "confidence_score": 86,
         "wacc": 10.4,
         "terminal_growth": 3.0,
@@ -365,19 +365,19 @@ RESEARCH_MODELS: Dict[str, Dict] = {
         "bear_target": 118000,
         "target_upside": 24.0,
         "executive_summary": [
-            "FPT remains a high-quality growth compounder with resilient software outsourcing, domestic digital transformation, telecom cash flow and education expansion.",
-            "AI and semiconductor initiatives increase the optionality of the long-term revenue mix, but valuation should still be anchored to executable software and telecom earnings.",
-            "The stock deserves a premium multiple versus the market because ROE, cash conversion and earnings visibility remain structurally superior.",
-            "Key debate: whether international IT services can keep high-teens growth while salary inflation and Japan FX volatility are controlled.",
+            "FPT tiếp tục là doanh nghiệp tăng trưởng chất lượng cao nhờ xuất khẩu phần mềm, chuyển đổi số trong nước, dòng tiền viễn thông và mảng giáo dục.",
+            "Các sáng kiến AI và bán dẫn tạo thêm quyền chọn tăng trưởng dài hạn, nhưng định giá vẫn neo vào năng lực thực thi của mảng phần mềm và viễn thông.",
+            "Cổ phiếu xứng đáng được giao dịch ở mức P/E cao hơn thị trường nhờ ROE, khả năng chuyển đổi tiền mặt và độ chắc chắn lợi nhuận vượt trội.",
+            "Vấn đề cần theo dõi là liệu dịch vụ CNTT quốc tế có duy trì được tăng trưởng cao trong khi kiểm soát lạm phát lương và biến động JPY/VND.",
         ],
         "catalysts": [
-            {"title": "Global IT Services", "detail": "New contracts in Japan, APAC and the US support high-teens revenue growth and margin resilience.", "impact": "High", "timeline": "Next 2-4 quarters"},
-            {"title": "AI Factory / NVIDIA Ecosystem", "detail": "AI infrastructure and enterprise AI demand create upside optionality beyond the core outsourcing model.", "impact": "Medium", "timeline": "2026+"},
-            {"title": "Education & Telecom Cash Flow", "detail": "Stable recurring cash flow funds dividends and reduces balance-sheet risk through the cycle.", "impact": "Medium", "timeline": "Ongoing"},
+            {"title": "Dịch vụ CNTT toàn cầu", "detail": "Hợp đồng mới tại Nhật Bản, APAC và Mỹ hỗ trợ tăng trưởng doanh thu cao và giữ biên lợi nhuận ổn định.", "impact": "Cao", "timeline": "2-4 quý tới"},
+            {"title": "AI Factory / hệ sinh thái NVIDIA", "detail": "Hạ tầng AI và nhu cầu AI doanh nghiệp tạo dư địa tăng trưởng ngoài mô hình outsourcing truyền thống.", "impact": "Trung bình", "timeline": "Từ 2026"},
+            {"title": "Giáo dục và dòng tiền viễn thông", "detail": "Dòng tiền lặp lại ổn định hỗ trợ cổ tức và giảm rủi ro bảng cân đối trong chu kỳ.", "impact": "Trung bình", "timeline": "Liên tục"},
         ],
         "risks": [
-            {"title": "JPY/VND and client budget pressure", "impact": "Medium", "content": "Japan exposure can dilute reported growth when FX moves against VND."},
-            {"title": "Talent cost inflation", "impact": "High", "content": "Salary inflation can compress software service margin if utilization softens."},
+            {"title": "Tỷ giá JPY/VND và ngân sách khách hàng", "impact": "Trung bình", "content": "Doanh thu từ Nhật Bản có thể bị pha loãng khi tỷ giá biến động bất lợi so với VND."},
+            {"title": "Lạm phát chi phí nhân sự", "impact": "Cao", "content": "Chi phí lương tăng có thể làm giảm biên lợi nhuận dịch vụ phần mềm nếu tỷ lệ sử dụng nhân sự suy yếu."},
         ],
         "history": [
             {"year": "2021", "revenue": 35657, "profit": 4337, "margin": 12.2},
@@ -391,10 +391,10 @@ RESEARCH_MODELS: Dict[str, Dict] = {
     "HPG": {
         "company_name": "Hoa Phat Group",
         "exchange": "HOSE",
-        "industry": "Steel & Materials",
-        "recommendation": "OUTPERFORM",
-        "risk_level": "Medium-High",
-        "holding_period": "6-12 months",
+        "industry": "Thép và vật liệu",
+        "recommendation": "KHẢ QUAN",
+        "risk_level": "Trung bình - Cao",
+        "holding_period": "6-12 tháng",
         "confidence_score": 78,
         "wacc": 11.0,
         "terminal_growth": 2.0,
@@ -408,19 +408,19 @@ RESEARCH_MODELS: Dict[str, Dict] = {
         "bear_target": 28500,
         "target_upside": 35.0,
         "executive_summary": [
-            "HPG is a cyclical recovery name with earnings leverage to HRC volume, Dung Quat 2 ramp-up and domestic construction demand.",
-            "The integrated production model remains a cost advantage, but earnings visibility is lower than defensive growth stocks.",
-            "Base-case valuation is supported if HRC spreads normalize and Dung Quat 2 utilization improves through 2026.",
-            "Position sizing should account for commodity input volatility and property-sector demand risk.",
+            "HPG là cổ phiếu chu kỳ hồi phục, có đòn bẩy lợi nhuận từ sản lượng HRC, tiến độ Dung Quất 2 và nhu cầu xây dựng trong nước.",
+            "Mô hình sản xuất khép kín tiếp tục là lợi thế chi phí, nhưng độ chắc chắn lợi nhuận thấp hơn nhóm tăng trưởng phòng thủ.",
+            "Định giá cơ sở được hỗ trợ nếu spread HRC bình thường hóa và tỷ lệ vận hành Dung Quất 2 cải thiện trong năm 2026.",
+            "Tỷ trọng đầu tư cần phản ánh biến động giá nguyên liệu và rủi ro nhu cầu từ bất động sản.",
         ],
         "catalysts": [
-            {"title": "Dung Quat 2 Ramp-up", "detail": "Additional HRC capacity can reset earnings power if utilization and spreads recover.", "impact": "High", "timeline": "2025-2026"},
-            {"title": "Public Investment Demand", "detail": "Infrastructure activity supports domestic steel consumption and inventory restocking.", "impact": "Medium", "timeline": "Next 4 quarters"},
-            {"title": "HRC Spread Normalization", "detail": "Margin expands when selling prices recover faster than iron ore and coking coal costs.", "impact": "High", "timeline": "Cycle dependent"},
+            {"title": "Dung Quất 2 tăng công suất", "detail": "Công suất HRC bổ sung có thể nâng lại nền lợi nhuận nếu tỷ lệ sử dụng và spread hồi phục.", "impact": "Cao", "timeline": "2025-2026"},
+            {"title": "Nhu cầu đầu tư công", "detail": "Hoạt động hạ tầng hỗ trợ tiêu thụ thép nội địa và chu kỳ tái tích trữ hàng tồn kho.", "impact": "Trung bình", "timeline": "4 quý tới"},
+            {"title": "Spread HRC bình thường hóa", "detail": "Biên lợi nhuận mở rộng khi giá bán phục hồi nhanh hơn quặng sắt và than luyện cốc.", "impact": "Cao", "timeline": "Theo chu kỳ"},
         ],
         "risks": [
-            {"title": "Iron ore and coking coal volatility", "impact": "High", "content": "Input cost spikes can pressure gross margin before selling prices adjust."},
-            {"title": "Weak property demand", "impact": "Medium", "content": "Slow residential construction recovery can cap domestic steel demand."},
+            {"title": "Biến động quặng sắt và than luyện cốc", "impact": "Cao", "content": "Chi phí đầu vào tăng nhanh có thể gây áp lực lên biên gộp trước khi giá bán điều chỉnh."},
+            {"title": "Nhu cầu bất động sản yếu", "impact": "Trung bình", "content": "Sự hồi phục chậm của xây dựng dân dụng có thể giới hạn nhu cầu thép nội địa."},
         ],
         "history": [
             {"year": "2020", "revenue": 91279, "profit": 13506, "margin": 14.8},
@@ -445,9 +445,9 @@ def get_research_model(ticker: str) -> Dict:
             "company_name": meta["company"],
             "exchange": meta["exchange"],
             "industry": meta["sector"],
-            "recommendation": "NEUTRAL",
-            "risk_level": "Medium",
-            "holding_period": "Review after next earnings",
+            "recommendation": "TRUNG LẬP",
+            "risk_level": "Trung bình",
+            "holding_period": "Đánh giá lại sau kỳ KQKD tới",
             "confidence_score": 65,
             "wacc": 11.5,
             "terminal_growth": 2.0,
@@ -458,16 +458,16 @@ def get_research_model(ticker: str) -> Dict:
             "bull_target": round(close * 1.22) if close else 0,
             "bear_target": round(close * 0.88) if close else 0,
             "executive_summary": [
-                f"{ticker} is kept under active monitoring until a clearer earnings catalyst and technical confirmation appear.",
-                "Backend pricing and volume data are live; detailed fundamental forecasts require a licensed datafeed.",
-                "Valuation is deliberately conservative because consensus and company guidance are not yet fully integrated.",
+                f"{ticker} được giữ trong danh sách theo dõi cho tới khi xuất hiện catalyst lợi nhuận và xác nhận kỹ thuật rõ ràng hơn.",
+                "Dữ liệu giá và khối lượng được lấy trực tiếp từ backend; dự báo cơ bản chi tiết cần thêm nguồn dữ liệu có bản quyền.",
+                "Định giá hiện được đặt thận trọng vì consensus và hướng dẫn doanh nghiệp chưa được tích hợp đầy đủ.",
             ],
             "catalysts": [
-                {"title": "Next earnings release", "detail": "Confirm revenue growth, margin direction and management guidance.", "impact": "Medium", "timeline": "Next quarter"},
-                {"title": "Volume confirmation", "detail": "A breakout with above-average volume would improve the risk/reward setup.", "impact": "Medium", "timeline": "Market dependent"},
+                {"title": "Kỳ công bố KQKD tới", "detail": "Xác nhận tăng trưởng doanh thu, xu hướng biên lợi nhuận và định hướng ban lãnh đạo.", "impact": "Trung bình", "timeline": "Quý tới"},
+                {"title": "Xác nhận khối lượng", "detail": "Một nhịp breakout với khối lượng trên trung bình sẽ cải thiện điểm mua và tỷ lệ lợi nhuận/rủi ro.", "impact": "Trung bình", "timeline": "Theo thị trường"},
             ],
             "risks": [
-                {"title": "Data coverage", "impact": "Medium", "content": "Fundamental data coverage is limited without a paid licensed feed."},
+                {"title": "Độ phủ dữ liệu", "impact": "Trung bình", "content": "Dữ liệu cơ bản còn giới hạn nếu chưa kết nối nguồn dữ liệu trả phí có bản quyền."},
             ],
             "history": [],
         }
@@ -482,9 +482,9 @@ def get_research_model(ticker: str) -> Dict:
         model["bear_target"] = round(current_price * 0.9)
     upside = round((base_target / current_price - 1) * 100, 1) if current_price else 0
     scenario = {
-        "bear": {"target": model["bear_target"], "probability": 25, "driver": "Margin pressure or weak volume confirmation"},
-        "base": {"target": model["base_target"], "probability": 50, "driver": "Earnings grow in line with model assumptions"},
-        "bull": {"target": model["bull_target"], "probability": 25, "driver": "Catalysts convert faster than expected"},
+        "bear": {"target": model["bear_target"], "probability": 25, "driver": "Áp lực biên lợi nhuận hoặc khối lượng xác nhận yếu"},
+        "base": {"target": model["base_target"], "probability": 50, "driver": "Lợi nhuận tăng đúng theo giả định mô hình"},
+        "bull": {"target": model["bull_target"], "probability": 25, "driver": "Catalyst chuyển hóa nhanh hơn kỳ vọng"},
     }
     weighted_target = round(sum(s["target"] * s["probability"] for s in scenario.values()) / 100)
     return {
@@ -499,18 +499,18 @@ def get_research_model(ticker: str) -> Dict:
             "fundamental": 88 if ticker == "FPT" else 78,
             "technical": min(95, max(35, quote["relativeStrengthVNIndex"] if quote else 60)),
             "momentum": min(95, max(35, 55 + (quote["changePct"] if quote else 0) * 8)),
-            "risk": 82 if model["risk_level"].startswith("Medium") else 70,
+            "risk": 82 if model["risk_level"].startswith("Trung") else 70,
         },
         "valuation_bridge": [
-            {"label": "Forward EPS", "value": model["forward_eps"], "unit": "VND/share"},
-            {"label": "Target P/E", "value": model["target_pe"], "unit": "x"},
-            {"label": "Base target", "value": base_target, "unit": "VND/share"},
-            {"label": "Weighted target", "value": weighted_target, "unit": "VND/share"},
+            {"label": "EPS dự phóng", "value": model["forward_eps"], "unit": "VND/cp"},
+            {"label": "P/E mục tiêu", "value": model["target_pe"], "unit": "x"},
+            {"label": "Giá mục tiêu cơ sở", "value": base_target, "unit": "VND/cp"},
+            {"label": "Giá mục tiêu xác suất", "value": weighted_target, "unit": "VND/cp"},
         ],
         "assumptions": [
-            f"Revenue growth model: {model['growth_rate']}% near-term CAGR.",
+            f"Mô hình tăng trưởng doanh thu: CAGR ngắn hạn {model['growth_rate']}%.",
             f"WACC: {model['wacc']}%, terminal growth: {model['terminal_growth']}%.",
-            f"Forward EPS anchor: {model['forward_eps']:,} VND/share and target P/E {model['target_pe']}x.",
+            f"EPS dự phóng: {model['forward_eps']:,} VND/cp và P/E mục tiêu {model['target_pe']}x.",
         ],
         "sources": data_sources(),
     }
@@ -542,15 +542,15 @@ def build_research_pdf(ticker: str) -> bytes:
 
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1.3 * cm, leftMargin=1.3 * cm, topMargin=1.2 * cm, bottomMargin=1.2 * cm)
     story = [
-        Paragraph(f"{model['ticker']} Equity Research Report", title),
+        Paragraph(f"Báo cáo phân tích cổ phiếu {model['ticker']}", title),
         Paragraph(f"{model['company_name']} | {model['exchange']} | {datetime.utcnow().strftime('%Y-%m-%d UTC')}", small),
         Spacer(1, 10),
     ]
 
     summary_rows = [
-        ["Recommendation", model["recommendation"], "Current price", f"{model['current_price']:,} VND"],
-        ["Target price", f"{model['target_price']:,} VND", "Upside", f"{model['upside']}%"],
-        ["Risk", model["risk_level"], "Horizon", model["holding_period"]],
+        ["Khuyến nghị", model["recommendation"], "Giá hiện tại", f"{model['current_price']:,} VND"],
+        ["Giá mục tiêu", f"{model['target_price']:,} VND", "Upside", f"{model['upside']}%"],
+        ["Rủi ro", model["risk_level"], "Thời gian nắm giữ", model["holding_period"]],
     ]
     table = Table(summary_rows, colWidths=[3.2 * cm, 4.5 * cm, 3.2 * cm, 4.5 * cm])
     table.setStyle(TableStyle([
@@ -561,16 +561,16 @@ def build_research_pdf(ticker: str) -> bytes:
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("PADDING", (0, 0), (-1, -1), 6),
     ]))
-    story += [table, Spacer(1, 8), Paragraph("Investment Thesis", h2)]
+    story += [table, Spacer(1, 8), Paragraph("Luận điểm đầu tư", h2)]
     for item in model["executive_summary"]:
         story.append(Paragraph(f"• {item}", body))
 
-    story.append(Paragraph("Catalysts", h2))
+    story.append(Paragraph("Catalyst", h2))
     for item in model["catalysts"]:
         story.append(Paragraph(f"<b>{item['title']}</b> ({item['impact']}, {item['timeline']}): {item['detail']}", body))
 
-    story.append(Paragraph("Valuation", h2))
-    bridge_rows = [["Metric", "Value", "Unit"]] + [[x["label"], f"{x['value']:,}" if isinstance(x["value"], int) else str(x["value"]), x["unit"]] for x in model["valuation_bridge"]]
+    story.append(Paragraph("Định giá", h2))
+    bridge_rows = [["Chỉ tiêu", "Giá trị", "Đơn vị"]] + [[x["label"], f"{x['value']:,}" if isinstance(x["value"], int) else str(x["value"]), x["unit"]] for x in model["valuation_bridge"]]
     bridge = Table(bridge_rows, colWidths=[5.2 * cm, 4.0 * cm, 5.0 * cm])
     bridge.setStyle(TableStyle([
         ("FONTNAME", (0, 0), (-1, -1), font_name),
@@ -583,10 +583,10 @@ def build_research_pdf(ticker: str) -> bytes:
     for item in model["assumptions"]:
         story.append(Paragraph(f"• {item}", body))
 
-    story.append(Paragraph("Key Risks", h2))
+    story.append(Paragraph("Rủi ro chính", h2))
     for item in model["risks"]:
         story.append(Paragraph(f"<b>{item['title']}</b> ({item['impact']}): {item['content']}", body))
     story.append(Spacer(1, 10))
-    story.append(Paragraph("Disclaimer: This report is generated for analysis workflow demonstration and is not investment advice.", small))
+    story.append(Paragraph("Miễn trừ trách nhiệm: Báo cáo được tạo cho mục đích phân tích và trình diễn quy trình, không phải khuyến nghị đầu tư bắt buộc.", small))
     doc.build(story)
     return buffer.getvalue()

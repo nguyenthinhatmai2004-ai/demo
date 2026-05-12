@@ -382,7 +382,7 @@ class VNStockTerminalApp:
             return [
                 {
                     "ticker": item["ticker"],
-                    "reason": f"Backend live scan: {item['setupStatus']}, change {item['changePct']}%, sector {item['sector']}.",
+                    "reason": f"Quét dữ liệu live từ backend: {item['setupStatus']}, biến động {item['changePct']}%, ngành {item['sector']}.",
                     "entry_zone": item["buyZone"],
                     "target": item["target1"],
                     "risk": item["creditSensitivity"],
@@ -477,16 +477,16 @@ class VNStockTerminalApp:
                     "vsa_signal": "Live volume scan",
                     "entry": item["pivotPrice"],
                     "potential": f"+{round((item['target1'] / item['price'] - 1) * 100, 1)}%",
-                    "sepa_verdict": "BUY" if item["setupStatus"] == "Ready to Buy" else "WATCHLIST",
+                    "sepa_verdict": "MUA" if item["setupStatus"] == "Ready to Buy" else "THEO DÕI",
                 }
                 for item in strategic[:5]
             ]
             return {
                 "mode": "GROWTH_HUNTING",
-                "market_timing": "Backend live scan from vnstock",
+                "market_timing": "Quét dữ liệu live từ backend qua vnstock",
                 "ui": {
-                    "table_title": "CANSLIM & SEPA live backend scanner",
-                    "search_mode_label": "Backend API mode",
+                    "table_title": "Bộ lọc CANSLIM & SEPA từ backend",
+                    "search_mode_label": "Chế độ API backend",
                 },
                 "focus_list": focus_list,
                 "tactical_alerts": [],
@@ -828,9 +828,9 @@ class VNStockTerminalApp:
                     "strategic_catalysts": research["catalysts"],
                     "risk_assessment": research["risks"],
                     "consensus": {
-                        "buy": 8 if research["recommendation"] in {"BUY", "OUTPERFORM"} else 3,
+                        "buy": 8 if research["recommendation"] in {"MUA", "KHẢ QUAN"} else 3,
                         "hold": 2,
-                        "sell": 0 if research["recommendation"] in {"BUY", "OUTPERFORM"} else 1,
+                        "sell": 0 if research["recommendation"] in {"MUA", "KHẢ QUAN"} else 1,
                         "avg_target": research["weighted_target"],
                         "max_target": research["scenario"]["bull"]["target"],
                         "min_target": research["scenario"]["bear"]["target"],
