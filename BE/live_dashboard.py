@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 from functools import lru_cache
+from io import BytesIO
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -341,3 +342,251 @@ def data_sources() -> List[Dict[str, str]]:
         {"name": "FiinPro / FiinQuant", "type": "commercial", "usage": "Recommended institutional financial, ownership and macro data"},
         {"name": "CafeF / Vietstock / Tin nhanh Chung khoan", "type": "news", "usage": "News links and catalyst enrichment"},
     ]
+
+
+RESEARCH_MODELS: Dict[str, Dict] = {
+    "FPT": {
+        "company_name": "FPT Corporation",
+        "exchange": "HOSE",
+        "industry": "Information Technology",
+        "recommendation": "BUY",
+        "risk_level": "Medium",
+        "holding_period": "12 months",
+        "confidence_score": 86,
+        "wacc": 10.4,
+        "terminal_growth": 3.0,
+        "growth_rate": 18.0,
+        "revenue_2024": 62849,
+        "profit_2024": 7851,
+        "target_pe": 23.5,
+        "forward_eps": 6200,
+        "base_target": 146000,
+        "bull_target": 172000,
+        "bear_target": 118000,
+        "target_upside": 24.0,
+        "executive_summary": [
+            "FPT remains a high-quality growth compounder with resilient software outsourcing, domestic digital transformation, telecom cash flow and education expansion.",
+            "AI and semiconductor initiatives increase the optionality of the long-term revenue mix, but valuation should still be anchored to executable software and telecom earnings.",
+            "The stock deserves a premium multiple versus the market because ROE, cash conversion and earnings visibility remain structurally superior.",
+            "Key debate: whether international IT services can keep high-teens growth while salary inflation and Japan FX volatility are controlled.",
+        ],
+        "catalysts": [
+            {"title": "Global IT Services", "detail": "New contracts in Japan, APAC and the US support high-teens revenue growth and margin resilience.", "impact": "High", "timeline": "Next 2-4 quarters"},
+            {"title": "AI Factory / NVIDIA Ecosystem", "detail": "AI infrastructure and enterprise AI demand create upside optionality beyond the core outsourcing model.", "impact": "Medium", "timeline": "2026+"},
+            {"title": "Education & Telecom Cash Flow", "detail": "Stable recurring cash flow funds dividends and reduces balance-sheet risk through the cycle.", "impact": "Medium", "timeline": "Ongoing"},
+        ],
+        "risks": [
+            {"title": "JPY/VND and client budget pressure", "impact": "Medium", "content": "Japan exposure can dilute reported growth when FX moves against VND."},
+            {"title": "Talent cost inflation", "impact": "High", "content": "Salary inflation can compress software service margin if utilization softens."},
+        ],
+        "history": [
+            {"year": "2021", "revenue": 35657, "profit": 4337, "margin": 12.2},
+            {"year": "2022", "revenue": 44010, "profit": 5310, "margin": 12.1},
+            {"year": "2023", "revenue": 52618, "profit": 6470, "margin": 12.3},
+            {"year": "2024", "revenue": 62849, "profit": 7851, "margin": 12.5},
+            {"year": "2025E", "revenue": 74162, "profit": 9320, "margin": 12.6},
+            {"year": "2026E", "revenue": 87411, "profit": 11040, "margin": 12.6},
+        ],
+    },
+    "HPG": {
+        "company_name": "Hoa Phat Group",
+        "exchange": "HOSE",
+        "industry": "Steel & Materials",
+        "recommendation": "OUTPERFORM",
+        "risk_level": "Medium-High",
+        "holding_period": "6-12 months",
+        "confidence_score": 78,
+        "wacc": 11.0,
+        "terminal_growth": 2.0,
+        "growth_rate": 15.0,
+        "revenue_2024": 140560,
+        "profit_2024": 12020,
+        "target_pe": 14.0,
+        "forward_eps": 2600,
+        "base_target": 36500,
+        "bull_target": 42000,
+        "bear_target": 28500,
+        "target_upside": 35.0,
+        "executive_summary": [
+            "HPG is a cyclical recovery name with earnings leverage to HRC volume, Dung Quat 2 ramp-up and domestic construction demand.",
+            "The integrated production model remains a cost advantage, but earnings visibility is lower than defensive growth stocks.",
+            "Base-case valuation is supported if HRC spreads normalize and Dung Quat 2 utilization improves through 2026.",
+            "Position sizing should account for commodity input volatility and property-sector demand risk.",
+        ],
+        "catalysts": [
+            {"title": "Dung Quat 2 Ramp-up", "detail": "Additional HRC capacity can reset earnings power if utilization and spreads recover.", "impact": "High", "timeline": "2025-2026"},
+            {"title": "Public Investment Demand", "detail": "Infrastructure activity supports domestic steel consumption and inventory restocking.", "impact": "Medium", "timeline": "Next 4 quarters"},
+            {"title": "HRC Spread Normalization", "detail": "Margin expands when selling prices recover faster than iron ore and coking coal costs.", "impact": "High", "timeline": "Cycle dependent"},
+        ],
+        "risks": [
+            {"title": "Iron ore and coking coal volatility", "impact": "High", "content": "Input cost spikes can pressure gross margin before selling prices adjust."},
+            {"title": "Weak property demand", "impact": "Medium", "content": "Slow residential construction recovery can cap domestic steel demand."},
+        ],
+        "history": [
+            {"year": "2020", "revenue": 91279, "profit": 13506, "margin": 14.8},
+            {"year": "2021", "revenue": 150865, "profit": 34521, "margin": 22.9},
+            {"year": "2022", "revenue": 142770, "profit": 8444, "margin": 5.9},
+            {"year": "2023", "revenue": 120355, "profit": 6800, "margin": 5.7},
+            {"year": "2024", "revenue": 140560, "profit": 12020, "margin": 8.6},
+            {"year": "2025E", "revenue": 166000, "profit": 15500, "margin": 9.3},
+        ],
+    },
+}
+
+
+def get_research_model(ticker: str) -> Dict:
+    ticker = ticker.upper().strip()
+    quote = build_quant_stock(ticker)
+    model = RESEARCH_MODELS.get(ticker, {}).copy()
+    if not model:
+        meta = SYMBOL_META.get(ticker, {"company": ticker, "exchange": "HOSE", "sector": "Unknown"})
+        close = quote["close"] if quote else 0
+        model = {
+            "company_name": meta["company"],
+            "exchange": meta["exchange"],
+            "industry": meta["sector"],
+            "recommendation": "NEUTRAL",
+            "risk_level": "Medium",
+            "holding_period": "Review after next earnings",
+            "confidence_score": 65,
+            "wacc": 11.5,
+            "terminal_growth": 2.0,
+            "growth_rate": 8.0,
+            "target_pe": 12.0,
+            "forward_eps": round(close / 14) if close else 0,
+            "base_target": round(close * 1.08) if close else 0,
+            "bull_target": round(close * 1.22) if close else 0,
+            "bear_target": round(close * 0.88) if close else 0,
+            "executive_summary": [
+                f"{ticker} is kept under active monitoring until a clearer earnings catalyst and technical confirmation appear.",
+                "Backend pricing and volume data are live; detailed fundamental forecasts require a licensed datafeed.",
+                "Valuation is deliberately conservative because consensus and company guidance are not yet fully integrated.",
+            ],
+            "catalysts": [
+                {"title": "Next earnings release", "detail": "Confirm revenue growth, margin direction and management guidance.", "impact": "Medium", "timeline": "Next quarter"},
+                {"title": "Volume confirmation", "detail": "A breakout with above-average volume would improve the risk/reward setup.", "impact": "Medium", "timeline": "Market dependent"},
+            ],
+            "risks": [
+                {"title": "Data coverage", "impact": "Medium", "content": "Fundamental data coverage is limited without a paid licensed feed."},
+            ],
+            "history": [],
+        }
+
+    current_price = quote["close"] if quote else 0
+    base_target = int(model["base_target"])
+    if current_price and (base_target / current_price > 1.7 or base_target / current_price < 0.7):
+        target_upside = float(model.get("target_upside", 12.0))
+        base_target = round(current_price * (1 + target_upside / 100))
+        model["base_target"] = base_target
+        model["bull_target"] = round(current_price * (1 + (target_upside + 12) / 100))
+        model["bear_target"] = round(current_price * 0.9)
+    upside = round((base_target / current_price - 1) * 100, 1) if current_price else 0
+    scenario = {
+        "bear": {"target": model["bear_target"], "probability": 25, "driver": "Margin pressure or weak volume confirmation"},
+        "base": {"target": model["base_target"], "probability": 50, "driver": "Earnings grow in line with model assumptions"},
+        "bull": {"target": model["bull_target"], "probability": 25, "driver": "Catalysts convert faster than expected"},
+    }
+    weighted_target = round(sum(s["target"] * s["probability"] for s in scenario.values()) / 100)
+    return {
+        **model,
+        "ticker": ticker,
+        "current_price": current_price,
+        "target_price": base_target,
+        "weighted_target": weighted_target,
+        "upside": upside,
+        "scenario": scenario,
+        "scores": {
+            "fundamental": 88 if ticker == "FPT" else 78,
+            "technical": min(95, max(35, quote["relativeStrengthVNIndex"] if quote else 60)),
+            "momentum": min(95, max(35, 55 + (quote["changePct"] if quote else 0) * 8)),
+            "risk": 82 if model["risk_level"].startswith("Medium") else 70,
+        },
+        "valuation_bridge": [
+            {"label": "Forward EPS", "value": model["forward_eps"], "unit": "VND/share"},
+            {"label": "Target P/E", "value": model["target_pe"], "unit": "x"},
+            {"label": "Base target", "value": base_target, "unit": "VND/share"},
+            {"label": "Weighted target", "value": weighted_target, "unit": "VND/share"},
+        ],
+        "assumptions": [
+            f"Revenue growth model: {model['growth_rate']}% near-term CAGR.",
+            f"WACC: {model['wacc']}%, terminal growth: {model['terminal_growth']}%.",
+            f"Forward EPS anchor: {model['forward_eps']:,} VND/share and target P/E {model['target_pe']}x.",
+        ],
+        "sources": data_sources(),
+    }
+
+
+def build_research_pdf(ticker: str) -> bytes:
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import cm
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    model = get_research_model(ticker)
+    buffer = BytesIO()
+    font_path = "C:/Windows/Fonts/arial.ttf"
+    try:
+        pdfmetrics.registerFont(TTFont("Arial", font_path))
+        font_name = "Arial"
+    except Exception:
+        font_name = "Helvetica"
+
+    styles = getSampleStyleSheet()
+    title = ParagraphStyle("ResearchTitle", parent=styles["Title"], fontName=font_name, fontSize=22, leading=26, textColor=colors.HexColor("#111827"))
+    h2 = ParagraphStyle("ResearchH2", parent=styles["Heading2"], fontName=font_name, fontSize=12, leading=15, textColor=colors.HexColor("#0f766e"), spaceBefore=12)
+    body = ParagraphStyle("ResearchBody", parent=styles["BodyText"], fontName=font_name, fontSize=9, leading=13)
+    small = ParagraphStyle("ResearchSmall", parent=styles["BodyText"], fontName=font_name, fontSize=8, leading=11, textColor=colors.HexColor("#4b5563"))
+
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1.3 * cm, leftMargin=1.3 * cm, topMargin=1.2 * cm, bottomMargin=1.2 * cm)
+    story = [
+        Paragraph(f"{model['ticker']} Equity Research Report", title),
+        Paragraph(f"{model['company_name']} | {model['exchange']} | {datetime.utcnow().strftime('%Y-%m-%d UTC')}", small),
+        Spacer(1, 10),
+    ]
+
+    summary_rows = [
+        ["Recommendation", model["recommendation"], "Current price", f"{model['current_price']:,} VND"],
+        ["Target price", f"{model['target_price']:,} VND", "Upside", f"{model['upside']}%"],
+        ["Risk", model["risk_level"], "Horizon", model["holding_period"]],
+    ]
+    table = Table(summary_rows, colWidths=[3.2 * cm, 4.5 * cm, 3.2 * cm, 4.5 * cm])
+    table.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, -1), font_name),
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+        ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#cbd5e1")),
+        ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#111827")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("PADDING", (0, 0), (-1, -1), 6),
+    ]))
+    story += [table, Spacer(1, 8), Paragraph("Investment Thesis", h2)]
+    for item in model["executive_summary"]:
+        story.append(Paragraph(f"• {item}", body))
+
+    story.append(Paragraph("Catalysts", h2))
+    for item in model["catalysts"]:
+        story.append(Paragraph(f"<b>{item['title']}</b> ({item['impact']}, {item['timeline']}): {item['detail']}", body))
+
+    story.append(Paragraph("Valuation", h2))
+    bridge_rows = [["Metric", "Value", "Unit"]] + [[x["label"], f"{x['value']:,}" if isinstance(x["value"], int) else str(x["value"]), x["unit"]] for x in model["valuation_bridge"]]
+    bridge = Table(bridge_rows, colWidths=[5.2 * cm, 4.0 * cm, 5.0 * cm])
+    bridge.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, -1), font_name),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0f172a")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#cbd5e1")),
+        ("PADDING", (0, 0), (-1, -1), 6),
+    ]))
+    story.append(bridge)
+    for item in model["assumptions"]:
+        story.append(Paragraph(f"• {item}", body))
+
+    story.append(Paragraph("Key Risks", h2))
+    for item in model["risks"]:
+        story.append(Paragraph(f"<b>{item['title']}</b> ({item['impact']}): {item['content']}", body))
+    story.append(Spacer(1, 10))
+    story.append(Paragraph("Disclaimer: This report is generated for analysis workflow demonstration and is not investment advice.", small))
+    doc.build(story)
+    return buffer.getvalue()

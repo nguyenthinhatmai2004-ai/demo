@@ -5,7 +5,7 @@ import json
 import random
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 from dotenv import load_dotenv
@@ -16,7 +16,7 @@ from vnstock import Quote
 from database import create_db_and_tables, get_session, News, MacroIndicator, AITradeLog, Watchlist, StrategyScore, engine
 from scraper import NewsAggregator
 from services import StrategyEvaluator, MacroEngine, QuantTrader, TelegramService, BrokerTrader, OpenAICodexAdvisor
-from live_dashboard import get_quant_dashboard, get_strategic_dashboard, data_sources
+from live_dashboard import get_quant_dashboard, get_strategic_dashboard, data_sources, get_research_model, build_research_pdf
 
 # Load environment variables
 load_dotenv()
@@ -243,6 +243,20 @@ class VNStockTerminalApp:
         async def get_strategic_dashboard_api():
             return get_strategic_dashboard()
 
+        @self.app.get("/api/research/{ticker}")
+        async def get_research_snapshot(ticker: str):
+            return get_research_model(ticker)
+
+        @self.app.get("/api/research/{ticker}/pdf")
+        async def download_research_pdf(ticker: str):
+            ticker = ticker.upper().strip()
+            pdf = build_research_pdf(ticker)
+            return Response(
+                content=pdf,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'attachment; filename="{ticker}_research_report.pdf"'},
+            )
+
         # --- MACRO ---
         @self.app.get("/api/analysis/macro")
         async def get_macro(db: Session = Depends(get_session)):
@@ -403,6 +417,23 @@ class VNStockTerminalApp:
         @self.app.get("/api/finance/valuation/dcf/{ticker}")
         async def get_dcf_valuation(ticker: str):
             ticker = ticker.upper()
+            research = get_research_model(ticker)
+            if research:
+                return {
+                    "current_price": research["current_price"],
+                    "intrinsic_value": research["target_price"],
+                    "weighted_target": research["weighted_target"],
+                    "upside": research["upside"],
+                    "wacc": research["wacc"],
+                    "growth_rate": research["growth_rate"],
+                    "terminal_growth": research["terminal_growth"],
+                    "target_pe": research["target_pe"],
+                    "forward_eps": research["forward_eps"],
+                    "valuation_bridge": research["valuation_bridge"],
+                    "scenario": research["scenario"],
+                    "assumptions": research["assumptions"],
+                    "history": research["history"],
+                }
             data = {
                 "FPT": {
                     "current_price": 135200, "intrinsic_value": 168000, "upside": 24.3,
@@ -774,6 +805,39 @@ class VNStockTerminalApp:
         @self.app.get("/api/analysis/prospects/{ticker}")
         async def get_prospects(ticker: str):
             ticker = ticker.upper()
+            research = get_research_model(ticker)
+            if research:
+                return {
+                    "company_name": research["company_name"],
+                    "exchange": research["exchange"],
+                    "industry": research["industry"],
+                    "health_score": research["scores"]["fundamental"],
+                    "recommendation": research["recommendation"],
+                    "target_price": research["target_price"],
+                    "weighted_target": research["weighted_target"],
+                    "upside": research["upside"],
+                    "risk_level": research["risk_level"],
+                    "confidence_score": research["confidence_score"],
+                    "holding_period": research["holding_period"],
+                    "scores": research["scores"],
+                    "executive_summary": research["executive_summary"],
+                    "growth_pillars": [
+                        {"title": item["title"], "content": item["detail"]}
+                        for item in research["catalysts"]
+                    ],
+                    "strategic_catalysts": research["catalysts"],
+                    "risk_assessment": research["risks"],
+                    "consensus": {
+                        "buy": 8 if research["recommendation"] in {"BUY", "OUTPERFORM"} else 3,
+                        "hold": 2,
+                        "sell": 0 if research["recommendation"] in {"BUY", "OUTPERFORM"} else 1,
+                        "avg_target": research["weighted_target"],
+                        "max_target": research["scenario"]["bull"]["target"],
+                        "min_target": research["scenario"]["bear"]["target"],
+                    },
+                    "updated_at": datetime.now().strftime("%d/%m/%Y"),
+                    "research_id": f"{ticker}-{datetime.now().year}-RESEARCH",
+                }
             
             # Giả lập dữ liệu Consensus & Target Price chuyên nghiệp
             # Trong thực tế, dữ liệu này sẽ được cào hoặc tính toán từ các báo cáo CTCK

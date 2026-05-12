@@ -59,6 +59,23 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
     return () => clearInterval(interval);
   }, [activeTicker]);
 
+  const downloadResearchPdf = async () => {
+    const ticker = activeTicker.toUpperCase();
+    try {
+      const res = await axios.get(`${API_BASE}/research/${ticker}/pdf`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${ticker}_research_report.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download research PDF', error);
+    }
+  };
+
   const sections = [
     { id: 'overview', label: 'Tổng quan', icon: Globe },
     { id: 'fundamental', label: 'Cơ bản', icon: Award },
@@ -69,6 +86,10 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   ];
 
   const getRecommendationColor = (rec: string) => {
+    if (rec === 'BUY') return 'text-emerald-400 bg-emerald-500/10 border-emerald-400/30';
+    if (rec === 'OUTPERFORM') return 'text-cyan-300 bg-cyan-500/10 border-cyan-400/30';
+    if (rec === 'NEUTRAL') return 'text-amber-300 bg-amber-500/10 border-amber-400/30';
+    if (rec === 'SELL') return 'text-rose-300 bg-rose-500/10 border-rose-400/30';
     switch (rec) {
       case 'MUA': return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
       case 'KHẢ QUAN': return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
@@ -108,7 +129,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
         ))}
         
         <div className="mt-8 flex flex-col gap-3 px-2">
-           <button className="flex items-center gap-3 text-[10px] font-black text-slate-500 hover:text-blue-400 transition-colors uppercase tracking-widest">
+           <button onClick={downloadResearchPdf} className="flex items-center gap-3 text-[10px] font-black text-slate-500 hover:text-blue-400 transition-colors uppercase tracking-widest">
               <Download size={14} /> Xuất PDF (Research Note)
            </button>
            <button className="flex items-center gap-3 text-[10px] font-black text-slate-500 hover:text-emerald-400 transition-colors uppercase tracking-widest">
@@ -274,10 +295,13 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                     <Zap size={14} fill="currentColor" /> Catalyst & Động lực tăng trưởng
                  </h4>
                  <div className="flex flex-col gap-4">
-                    {(prospects?.strategic_catalysts || []).map((c: string, i: number) => (
-                       <div key={i} className="flex items-center gap-4 group">
-                          <div className="h-1 w-1 rounded-full bg-emerald-500 group-hover:scale-150 transition-transform"></div>
-                          <span className="text-xs font-bold text-slate-200 uppercase tracking-tight">{c}</span>
+                    {(prospects?.strategic_catalysts || []).map((c: any, i: number) => (
+                       <div key={i} className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.04] p-4">
+                          <div className="flex items-center justify-between gap-3">
+                             <span className="text-xs font-black text-white uppercase tracking-tight">{typeof c === 'string' ? c : c.title}</span>
+                             {typeof c !== 'string' && <span className="text-[9px] font-black text-emerald-300 uppercase">{c.impact} / {c.timeline}</span>}
+                          </div>
+                          {typeof c !== 'string' && <p className="mt-2 text-[11px] text-slate-400 leading-relaxed">{c.detail}</p>}
                        </div>
                     ))}
                  </div>
@@ -437,6 +461,45 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                  </div>
               ))}
            </div>
+
+           {valuation?.valuation_bridge && (
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-black/35 border border-white/5 rounded-2xl p-6">
+                   <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Valuation bridge</span>
+                   <div className="mt-5 grid grid-cols-2 gap-3">
+                      {valuation.valuation_bridge.map((item: any) => (
+                        <div key={item.label} className="rounded-xl border border-slate-800 bg-slate-950/80 p-4">
+                           <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{item.label}</p>
+                           <p className="mt-2 text-xl font-black text-white tabular-nums">
+                              {typeof item.value === 'number' ? item.value.toLocaleString() : item.value}
+                           </p>
+                           <p className="text-[10px] text-slate-500">{item.unit}</p>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+                <div className="bg-black/35 border border-white/5 rounded-2xl p-6">
+                   <span className="text-[10px] font-black text-cyan-300 uppercase tracking-widest">Scenario-weighted target</span>
+                   <div className="mt-5 flex flex-col gap-3">
+                      {Object.entries(valuation.scenario || {}).map(([name, item]: any) => (
+                         <div key={name} className="grid grid-cols-[84px_1fr_auto] items-center gap-4 rounded-xl border border-slate-800 bg-slate-950/80 p-4">
+                            <span className="text-xs font-black uppercase text-slate-300">{name}</span>
+                            <div>
+                              <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                                <div className="h-full bg-cyan-400" style={{ width: `${item.probability}%` }} />
+                              </div>
+                              <p className="mt-2 text-[10px] text-slate-500">{item.driver}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-black text-white">{item.target.toLocaleString()}</p>
+                              <p className="text-[9px] text-slate-500">{item.probability}%</p>
+                            </div>
+                         </div>
+                      ))}
+                   </div>
+                </div>
+             </div>
+           )}
 
            <div className="bg-white/[0.02] p-8 rounded-2xl border border-white/5 flex flex-col gap-6">
               <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Luận điểm định giá</span>
