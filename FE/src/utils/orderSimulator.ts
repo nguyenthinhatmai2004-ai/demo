@@ -23,7 +23,7 @@ export const simulateBuyOrder = (stock: QuantStock, nav = 1_000_000_000): Simula
   const quantity = calculatePositionSize(nav, stock.close, stopLoss, 0.01);
   return {
     orderId: `PAPER-BUY-${stock.ticker}`,
-    timestamp: 'Demo Data / Needs Live API',
+    timestamp: new Date().toISOString(),
     ticker: stock.ticker,
     action: 'Market Buy',
     signalSource: 'AI Quant Brain',
@@ -42,7 +42,7 @@ export const simulateSellOrder = (stock: QuantStock): SimulatedOrder => {
   const stopLoss = generateStopLoss(stock.close, stock.atr14);
   return {
     orderId: `PAPER-SELL-${stock.ticker}`,
-    timestamp: 'Demo Data / Needs Live API',
+    timestamp: new Date().toISOString(),
     ticker: stock.ticker,
     action: stock.close <= stopLoss ? 'Stop Loss' : 'Market Sell',
     signalSource: 'Risk Management Engine',

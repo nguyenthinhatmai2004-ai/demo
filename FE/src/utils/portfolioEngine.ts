@@ -49,8 +49,8 @@ export const calculatePerformanceMetrics = (closedTrades: ClosedTrade[]) => ({
   averageLoss: -3.1,
   expectancy: 2_276_000,
   numberOfTrades: closedTrades.length,
-  bestTrade: closedTrades.reduce((best, trade) => (trade.pnl > best.pnl ? trade : best), closedTrades[0]),
-  worstTrade: closedTrades.reduce((worst, trade) => (trade.pnl < worst.pnl ? trade : worst), closedTrades[0])
+  bestTrade: closedTrades.length ? closedTrades.reduce((best, trade) => (trade.pnl > best.pnl ? trade : best), closedTrades[0]) : null,
+  worstTrade: closedTrades.length ? closedTrades.reduce((worst, trade) => (trade.pnl < worst.pnl ? trade : worst), closedTrades[0]) : null
 });
 
 export const generateTradeJournalEntry = (trade: ClosedTrade): string => {

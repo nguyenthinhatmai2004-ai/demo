@@ -16,6 +16,7 @@ from vnstock import Quote
 from database import create_db_and_tables, get_session, News, MacroIndicator, AITradeLog, Watchlist, StrategyScore, engine
 from scraper import NewsAggregator
 from services import StrategyEvaluator, MacroEngine, QuantTrader, TelegramService, BrokerTrader, OpenAICodexAdvisor
+from live_dashboard import get_quant_dashboard, get_strategic_dashboard, data_sources
 
 # Load environment variables
 load_dotenv()
@@ -230,6 +231,18 @@ class VNStockTerminalApp:
         async def get_news(ticker_or_cat: str):
             return await self.news_aggregator.get_aggregated_news(ticker_or_cat.upper())
 
+        @self.app.get("/api/data/sources")
+        async def get_data_sources():
+            return data_sources()
+
+        @self.app.get("/api/quant/dashboard")
+        async def get_quant_dashboard_api():
+            return get_quant_dashboard()
+
+        @self.app.get("/api/strategic/dashboard")
+        async def get_strategic_dashboard_api():
+            return get_strategic_dashboard()
+
         # --- MACRO ---
         @self.app.get("/api/analysis/macro")
         async def get_macro(db: Session = Depends(get_session)):
@@ -346,6 +359,22 @@ class VNStockTerminalApp:
 
         @self.app.get("/api/market/scanner")
         async def get_market_scanner():
+            dashboard = get_strategic_dashboard()
+            rows = sorted(
+                dashboard.get("strategicStocks", []),
+                key=lambda item: item.get("relativeStrengthScore", 0) + item.get("liquidityScore", 0),
+                reverse=True,
+            )
+            return [
+                {
+                    "ticker": item["ticker"],
+                    "reason": f"Backend live scan: {item['setupStatus']}, change {item['changePct']}%, sector {item['sector']}.",
+                    "entry_zone": item["buyZone"],
+                    "target": item["target1"],
+                    "risk": item["creditSensitivity"],
+                }
+                for item in rows[:5]
+            ]
             # Trả về danh sách cổ phiếu tiềm năng dựa trên tăng trưởng cơ bản và phân tích kỹ thuật (đầu trend tăng)
             return [
                 {
@@ -408,6 +437,29 @@ class VNStockTerminalApp:
         # --- STRATEGY & ANALYSIS ---
         @self.app.get("/api/investment/strategy")
         async def get_investment_strategy(db: Session = Depends(get_session)):
+            strategic = get_strategic_dashboard().get("strategicStocks", [])
+            focus_list = [
+                {
+                    "ticker": item["ticker"],
+                    "canslim_score": round(sum(item["canslim"].values()) / len(item["canslim"])),
+                    "tech_status": item["setupStatus"],
+                    "vsa_signal": "Live volume scan",
+                    "entry": item["pivotPrice"],
+                    "potential": f"+{round((item['target1'] / item['price'] - 1) * 100, 1)}%",
+                    "sepa_verdict": "BUY" if item["setupStatus"] == "Ready to Buy" else "WATCHLIST",
+                }
+                for item in strategic[:5]
+            ]
+            return {
+                "mode": "GROWTH_HUNTING",
+                "market_timing": "Backend live scan from vnstock",
+                "ui": {
+                    "table_title": "CANSLIM & SEPA live backend scanner",
+                    "search_mode_label": "Backend API mode",
+                },
+                "focus_list": focus_list,
+                "tactical_alerts": [],
+            }
             return {
                 "mode": "GROWTH_HUNTING",
                 "market_timing": "Cơ hội giải ngân cao - Stage 2 xác nhận",

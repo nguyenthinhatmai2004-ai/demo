@@ -1,5 +1,11 @@
-import { quantStocks } from '../../data/quantData';
 import type { QuantNewsItem } from '../../data/quantData';
 
-export const fetchNguoiQuanSatNews = async (): Promise<QuantNewsItem[]> =>
-  quantStocks.flatMap((stock) => stock.news.filter((item) => item.source === 'nguoiquansat'));
+const API_BASE = 'http://127.0.0.1:8001/api';
+
+export const fetchNguoiQuanSatNews = async (): Promise<QuantNewsItem[]> => {
+  const res = await fetch(`${API_BASE}/quant/dashboard`);
+  const data = await res.json();
+  return (data.stocks ?? []).flatMap((stock: { news?: QuantNewsItem[] }) =>
+    (stock.news ?? []).filter((item) => item.source === 'nguoiquansat')
+  );
+};

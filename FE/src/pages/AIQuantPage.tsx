@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
 import {
   AlertTriangle,
   BarChart3,
@@ -16,8 +17,7 @@ import {
   X,
   Zap
 } from 'lucide-react';
-import { closedTrades, demoPositions, marketUniverseSummary, quantStocks } from '../data/quantData';
-import type { AIAction, BreakoutStatus, QuantStock } from '../data/quantData';
+import type { AIAction, BreakoutStatus, ClosedTrade, DemoPosition, QuantStock } from '../data/quantData';
 import { detectBreakoutStatus } from '../utils/breakoutEngine';
 import { calculateTrendScore, detectTrendStructure } from '../utils/cmtTrendEngine';
 import { calculateEarningsSurpriseScore, earningsQualityLabel } from '../utils/earningsScoring';
@@ -27,6 +27,28 @@ import { calculatePerformanceMetrics, calculatePortfolioMetrics, generateTradeJo
 import { calculateAIQuantScore, calculateTechnicalScore, classifyAIQuantScore, generateAIExplanation, generateAITradingAction } from '../utils/quantScoring';
 import { calculatePositionSize, calculateRiskRewardScore, generateStopLoss, generateTrailingStop, riskRulesForStock } from '../utils/riskManagement';
 import { calculateVolumeScore, detectAccumulationDistribution, detectVolumeExplosion } from '../utils/volumeEngine';
+
+const API_BASE = 'http://127.0.0.1:8001/api';
+
+interface QuantDashboardData {
+  stocks: QuantStock[];
+  positions: DemoPosition[];
+  closedTrades: ClosedTrade[];
+  marketUniverseSummary: {
+    hose: number;
+    hnx: number;
+    upcom: number;
+    scanned: string;
+    mode: string;
+  };
+}
+
+const emptyDashboard: QuantDashboardData = {
+  stocks: [],
+  positions: [],
+  closedTrades: [],
+  marketUniverseSummary: { hose: 0, hnx: 0, upcom: 0, scanned: 'Loading backend API', mode: 'Loading' }
+};
 
 const DISCLAIMER =
   'AI Quant chỉ phục vụ phân tích, mô phỏng và paper trading. Đây không phải khuyến nghị đầu tư. Không có chiến lược nào đảm bảo lợi nhuận. Cần quản trị rủi ro, kiểm chứng dữ liệu và xác nhận thủ công trước khi giao dịch bằng tiền thật.';
@@ -58,24 +80,24 @@ const target2For = (stock: QuantStock) => {
   return Math.round(stock.close + (stock.close - stopLoss) * 3.6);
 };
 
-export const QuantMarketOverview: React.FC = () => {
-  const metrics = calculatePortfolioMetrics(demoPositions, closedTrades);
-  const buyCount = quantStocks.filter((stock) => generateAITradingAction(stock) === 'Buy').length;
-  const watchCount = quantStocks.filter((stock) => generateAITradingAction(stock) === 'Watch').length;
+export const QuantMarketOverview: React.FC<{ dashboard: QuantDashboardData }> = ({ dashboard }) => {
+  const metrics = calculatePortfolioMetrics(dashboard.positions, dashboard.closedTrades);
+  const buyCount = dashboard.stocks.filter((stock) => generateAITradingAction(stock) === 'Buy').length;
+  const watchCount = dashboard.stocks.filter((stock) => generateAITradingAction(stock) === 'Watch').length;
   return (
     <section className="terminal-card p-7 rounded-2xl">
       <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6">
         <div>
-          <p className="text-[10px] font-black text-cyan-300 uppercase">Demo Data / Needs Live API</p>
+          <p className="text-[10px] font-black text-cyan-300 uppercase">Backend Live API</p>
           <h2 className="mt-2 text-3xl md:text-5xl font-black text-white">AI Quant Paper Trading System</h2>
           <p className="mt-4 max-w-4xl text-sm text-slate-400 leading-relaxed">
-            Scanner thiết kế cho HOSE, HNX và UPCOM. Hiện dùng mock universe đại diện, sẵn sàng thay bằng API toàn thị trường.
+            Scanner thiết kế cho HOSE, HNX và UPCOM. Universe, giá, volume và chỉ báo được tải từ backend.
             AI chỉ tự giao dịch trong paper portfolio, live trading mặc định tắt.
           </p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 min-w-0 xl:min-w-[760px]">
           {[
-            ['Universe', marketUniverseSummary.scanned, `${marketUniverseSummary.hose + marketUniverseSummary.hnx + marketUniverseSummary.upcom} mã`],
+            ['Universe', dashboard.marketUniverseSummary.scanned, `${dashboard.marketUniverseSummary.hose + dashboard.marketUniverseSummary.hnx + dashboard.marketUniverseSummary.upcom} mã`],
             ['Mode', 'Paper Trading', 'Live disabled'],
             ['NAV', `${money(metrics.nav)} ₫`, `${metrics.totalReturn}%`],
             ['Buy / Watch', `${buyCount} / ${watchCount}`, 'AI scan'],
@@ -248,8 +270,8 @@ export const AITradingBrain: React.FC<{ stock: QuantStock }> = ({ stock }) => {
   );
 };
 
-export const DemoPortfolio: React.FC = () => {
-  const metrics = calculatePortfolioMetrics(demoPositions, closedTrades);
+export const DemoPortfolio: React.FC<{ positions: DemoPosition[]; closedTrades: ClosedTrade[] }> = ({ positions, closedTrades }) => {
+  const metrics = calculatePortfolioMetrics(positions, closedTrades);
   return (
     <section className="terminal-card p-6 rounded-2xl flex flex-col gap-4">
       <div className="flex items-center gap-3 text-emerald-300">
@@ -271,7 +293,7 @@ export const DemoPortfolio: React.FC = () => {
           </div>
         ))}
       </div>
-      {demoPositions.map((position) => (
+      {positions.map((position) => (
         <div key={position.ticker} className="rounded-xl border border-slate-800 bg-black/20 p-3 text-xs text-slate-300">
           <div className="flex justify-between">
             <span className="font-black text-white">{position.ticker}</span>
@@ -321,7 +343,7 @@ export const RiskManagementEngine: React.FC<{ stock: QuantStock }> = ({ stock })
   </section>
 );
 
-export const TradeJournal: React.FC = () => (
+export const TradeJournal: React.FC<{ closedTrades: ClosedTrade[] }> = ({ closedTrades }) => (
   <section className="terminal-card p-6 rounded-2xl flex flex-col gap-4">
     <h3 className="font-black text-sm text-white">Trade Journal</h3>
     {closedTrades.map((trade) => (
@@ -341,7 +363,7 @@ export const BacktestPanel: React.FC = () => {
   return (
     <section className="terminal-card p-6 rounded-2xl">
       <h3 className="font-black text-sm text-white">Backtest Panel</h3>
-      <p className="mt-2 text-xs text-slate-500">Preset: {result.strategy} / Demo Data</p>
+      <p className="mt-2 text-xs text-slate-500">Preset: {result.strategy} / Backend paper-trading model</p>
       <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           ['CAGR', `${result.cagr}%`],
@@ -382,7 +404,7 @@ export const StrategyBuilder: React.FC = () => (
   </section>
 );
 
-export const WatchlistRankingTable: React.FC<{ onSelect: (stock: QuantStock) => void }> = ({ onSelect }) => {
+export const WatchlistRankingTable: React.FC<{ stocks: QuantStock[]; onSelect: (stock: QuantStock) => void }> = ({ stocks, onSelect }) => {
   const [query, setQuery] = useState('');
   const [sector, setSector] = useState('Tất cả');
   const [action, setAction] = useState('Tất cả');
@@ -398,7 +420,7 @@ export const WatchlistRankingTable: React.FC<{ onSelect: (stock: QuantStock) => 
       if (sortBy === 'earnings') return calculateEarningsSurpriseScore(stock);
       return calculateAIQuantScore(stock);
     };
-    return quantStocks
+    return stocks
       .filter((stock) => stock.ticker.includes(query.toUpperCase()) || stock.company.toLowerCase().includes(query.toLowerCase()))
       .filter((stock) => sector === 'Tất cả' || stock.sector === sector)
       .filter((stock) => action === 'Tất cả' || generateAITradingAction(stock) === action)
@@ -406,7 +428,7 @@ export const WatchlistRankingTable: React.FC<{ onSelect: (stock: QuantStock) => 
       .filter((stock) => !volumeOnly || stock.volume / stock.avgVolume20 >= 1.5)
       .filter((stock) => !earningsOnly || calculateEarningsSurpriseScore(stock) >= 70)
       .sort((a, b) => value(b) - value(a));
-  }, [action, breakout, earningsOnly, query, sector, sortBy, volumeOnly]);
+  }, [action, breakout, earningsOnly, query, sector, sortBy, stocks, volumeOnly]);
 
   const exportCsv = () => {
     const csv = [
@@ -426,7 +448,7 @@ export const WatchlistRankingTable: React.FC<{ onSelect: (stock: QuantStock) => 
     window.setTimeout(() => setLoading(false), 500);
   };
 
-  const sectors = ['Tất cả', ...Array.from(new Set(quantStocks.map((stock) => stock.sector)))];
+  const sectors = ['Tất cả', ...Array.from(new Set(stocks.map((stock) => stock.sector)))];
   const actions: Array<'Tất cả' | AIAction> = ['Tất cả', 'Buy', 'Watch', 'Hold', 'Sell', 'Avoid'];
   const breakouts: Array<'Tất cả' | BreakoutStatus> = ['Tất cả', 'Ready to Buy', 'Near Pivot', 'Breakout Confirmed', 'Pullback Entry', 'Extended', 'False Breakout', 'Breakdown', 'Avoid'];
 
@@ -435,7 +457,7 @@ export const WatchlistRankingTable: React.FC<{ onSelect: (stock: QuantStock) => 
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div>
           <h3 className="text-xl font-black text-white">AI Quant Ranking</h3>
-          <p className="text-xs text-slate-500">Quét HOSE, HNX, UPCOM. Demo Data / Needs Live API.</p>
+          <p className="text-xs text-slate-500">Quét HOSE, HNX, UPCOM qua backend API.</p>
         </div>
         <div className="flex gap-3">
           <button onClick={exportCsv} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-4 py-3 text-xs font-bold text-slate-200">
@@ -504,7 +526,7 @@ export const WatchlistRankingTable: React.FC<{ onSelect: (stock: QuantStock) => 
                     <td className="border-b border-slate-900 px-3 py-4 text-slate-300">{calculatePositionSize(1_000_000_000, stock.close, stop).toLocaleString('vi-VN')} cp</td>
                     <td className="border-b border-slate-900 px-3 py-4 text-slate-300">{stock.currentPosition ? 'Open Position' : 'No Position'}</td>
                     <td className="border-b border-slate-900 px-3 py-4 text-slate-400 max-w-[260px]">{stock.news[0]?.title ?? 'No news'}</td>
-                    <td className="border-b border-slate-900 px-3 py-4 text-slate-500">Demo Data / Needs Live API</td>
+                    <td className="border-b border-slate-900 px-3 py-4 text-slate-500">{stock.news[0]?.publishedAt ?? 'Backend API'}</td>
                   </tr>
                 );
               })}
@@ -543,7 +565,7 @@ export const AlertCenter: React.FC<{ stocks: QuantStock[]; onSelect: (stock: Qua
   );
 };
 
-export const PerformanceAnalytics: React.FC = () => {
+export const PerformanceAnalytics: React.FC<{ closedTrades: ClosedTrade[] }> = ({ closedTrades }) => {
   const metrics = calculatePerformanceMetrics(closedTrades);
   return (
     <section className="terminal-card p-6 rounded-2xl">
@@ -662,22 +684,45 @@ export const StockSignalDetailDrawer: React.FC<{ stock: QuantStock | null; onClo
 
 export const AIQuantPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   const [selectedStock, setSelectedStock] = useState<QuantStock | null>(null);
-  const activeStock = quantStocks.find((stock) => stock.ticker === activeTicker.toUpperCase()) ?? quantStocks[0];
+  const [dashboard, setDashboard] = useState<QuantDashboardData>(emptyDashboard);
+  const activeStock = dashboard.stocks.find((stock) => stock.ticker === activeTicker.toUpperCase()) ?? dashboard.stocks[0];
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchDashboard = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/quant/dashboard`);
+        if (!cancelled) setDashboard({ ...emptyDashboard, ...res.data });
+      } catch (error) {
+        console.error('Failed to fetch quant dashboard', error);
+      }
+    };
+    fetchDashboard();
+    const interval = window.setInterval(fetchDashboard, 60000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  if (!activeStock) {
+    return <div className="terminal-card p-6 text-sm text-slate-400">Loading backend market data...</div>;
+  }
 
   return (
     <div className="flex flex-col gap-8">
-      <QuantMarketOverview />
+      <QuantMarketOverview dashboard={dashboard} />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <SignalScanner stocks={quantStocks} onSelect={setSelectedStock} />
+        <SignalScanner stocks={dashboard.stocks} onSelect={setSelectedStock} />
         <div className="flex flex-col gap-6">
-          <VolumeExplosionScanner stocks={quantStocks} />
+          <VolumeExplosionScanner stocks={dashboard.stocks} />
           <BreakoutEngine stock={activeStock} />
           <StrategyBuilder />
         </div>
         <div className="flex flex-col gap-6">
           <AITradingBrain stock={activeStock} />
-          <DemoPortfolio />
-          <AlertCenter stocks={quantStocks} onSelect={setSelectedStock} />
+          <DemoPortfolio positions={dashboard.positions} closedTrades={dashboard.closedTrades} />
+          <AlertCenter stocks={dashboard.stocks} onSelect={setSelectedStock} />
         </div>
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -688,12 +733,12 @@ export const AIQuantPage: React.FC<{ activeTicker: string }> = ({ activeTicker }
         <EarningsSurpriseEngine stock={activeStock} />
         <RiskManagementEngine stock={activeStock} />
       </div>
-      <WatchlistRankingTable onSelect={setSelectedStock} />
+      <WatchlistRankingTable stocks={dashboard.stocks} onSelect={setSelectedStock} />
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <TradeJournal />
+        <TradeJournal closedTrades={dashboard.closedTrades} />
         <BacktestPanel />
       </div>
-      <PerformanceAnalytics />
+      <PerformanceAnalytics closedTrades={dashboard.closedTrades} />
       <HumanApprovalPanel />
       <footer className="rounded-2xl border border-slate-800 bg-black/30 p-5 text-xs text-slate-500 leading-relaxed">{DISCLAIMER}</footer>
       <StockSignalDetailDrawer stock={selectedStock} onClose={() => setSelectedStock(null)} />

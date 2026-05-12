@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
 import {
   AlertTriangle,
   BarChart3,
@@ -15,12 +16,6 @@ import {
   TrendingUp,
   X
 } from 'lucide-react';
-import {
-  coreMacroIndicators,
-  riskManagementRules,
-  secondaryMacroIndicators,
-  strategicStocks
-} from '../data/strategicData';
 import type { AllocationMode, MacroIndicator, SecondaryMacroIndicator, StrategicStock } from '../data/strategicData';
 import {
   calculateCreditLeverageScore,
@@ -44,6 +39,25 @@ import {
   getCatalystBadges
 } from '../utils/stockScoring';
 import { generateMacroVerdict, generateRiskWarning, generateStockThesis } from '../utils/aiVerdict';
+
+const API_BASE = 'http://127.0.0.1:8001/api';
+
+interface StrategicDashboardData {
+  coreMacroIndicators: MacroIndicator[];
+  secondaryMacroIndicators: SecondaryMacroIndicator[];
+  strategicStocks: StrategicStock[];
+  riskManagementRules: string[];
+}
+
+const emptyStrategicDashboard: StrategicDashboardData = {
+  coreMacroIndicators: [],
+  secondaryMacroIndicators: [],
+  strategicStocks: [],
+  riskManagementRules: []
+};
+
+const StrategicDashboardContext = createContext<StrategicDashboardData>(emptyStrategicDashboard);
+const useStrategicDashboard = () => useContext(StrategicDashboardContext);
 
 const DISCLAIMER =
   'Thông tin chỉ phục vụ phân tích nội bộ, không phải khuyến nghị đầu tư. Cần kết hợp thêm dữ liệu thị trường, kỹ thuật, dòng tiền và quản trị rủi ro trước khi ra quyết định.';
@@ -167,11 +181,13 @@ export const CoreMacroIndicatorCard: React.FC<{
   );
 };
 
-export const VietnamMacroCycleCore: React.FC = () => (
+export const VietnamMacroCycleCore: React.FC = () => {
+  const { coreMacroIndicators } = useStrategicDashboard();
+  return (
   <section className="flex flex-col gap-4">
     <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
       <div>
-        <p className="text-[10px] font-black text-blue-300 uppercase">Demo Data / Needs Live API</p>
+        <p className="text-[10px] font-black text-blue-300 uppercase">Backend Live API</p>
         <h2 className="text-2xl font-black text-white">Vietnam Macro Cycle Core</h2>
       </div>
       <p className="text-xs text-slate-400 max-w-2xl">
@@ -192,9 +208,11 @@ export const VietnamMacroCycleCore: React.FC = () => (
       ))}
     </div>
   </section>
-);
+  );
+};
 
 export const MacroScoreGauge: React.FC = () => {
+  const { coreMacroIndicators } = useStrategicDashboard();
   const score = calculateVietnamMacroScore(coreMacroIndicators);
   const regime = classifyMarketRegime(score);
   return (
@@ -221,6 +239,7 @@ export const MacroScoreGauge: React.FC = () => {
 };
 
 export const EconomicCycleEngine: React.FC = () => {
+  const { coreMacroIndicators } = useStrategicDashboard();
   const cycle = classifyEconomicCycle(coreMacroIndicators);
   return (
     <section className="terminal-card p-7 rounded-2xl flex flex-col gap-5">
@@ -240,6 +259,7 @@ export const EconomicCycleEngine: React.FC = () => {
 };
 
 export const CreditTankCard: React.FC = () => {
+  const { coreMacroIndicators } = useStrategicDashboard();
   const score = calculateCreditTankScore(coreMacroIndicators);
   return (
     <section className="terminal-card p-7 rounded-2xl flex flex-col gap-5">
@@ -437,6 +457,7 @@ export const WatchlistFilters: React.FC<{
   onSetup: (value: string) => void;
   onSortBy: (value: string) => void;
 }> = ({ query, sector, setup, sortBy, onQuery, onSector, onSetup, onSortBy }) => {
+  const { strategicStocks } = useStrategicDashboard();
   const sectors = ['Tất cả', ...Array.from(new Set(strategicStocks.map((stock) => stock.sector)))];
   const setups = ['Tất cả', ...Array.from(new Set(strategicStocks.map((stock) => stock.setupStatus)))];
   return (
@@ -467,6 +488,7 @@ export const WatchlistFilters: React.FC<{
 };
 
 export const StrategicAlphaBoard: React.FC<{ onSelectStock: (stock: StrategicStock) => void }> = ({ onSelectStock }) => {
+  const { strategicStocks } = useStrategicDashboard();
   const [query, setQuery] = useState('');
   const [sector, setSector] = useState('Tất cả');
   const [setup, setSetup] = useState('Tất cả');
@@ -521,7 +543,7 @@ export const StrategicAlphaBoard: React.FC<{ onSelectStock: (stock: StrategicSto
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h3 className="text-xl font-black text-white">Strategic Alpha Board</h3>
-          <p className="text-xs text-slate-500 mt-1">Demo Data / Needs Live API. Click ticker để mở Stock Detail Drawer.</p>
+          <p className="text-xs text-slate-500 mt-1">Backend API. Click ticker để mở Stock Detail Drawer.</p>
         </div>
         <div className="flex gap-3">
           <button onClick={exportCsv} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-4 py-3 text-xs font-bold text-slate-200 hover:border-blue-500">
@@ -611,8 +633,10 @@ export const StrategicAlphaBoard: React.FC<{ onSelectStock: (stock: StrategicSto
 };
 
 export const AIStrategicAnalystPanel: React.FC<{ selectedStock: StrategicStock | null; onSelectStock: (stock: StrategicStock) => void }> = ({ selectedStock, onSelectStock }) => {
+  const { coreMacroIndicators, strategicStocks } = useStrategicDashboard();
   const [memoGenerated, setMemoGenerated] = useState(false);
   const stock = selectedStock ?? strategicStocks[0];
+  if (!stock) return null;
   return (
     <section className="terminal-card p-7 rounded-2xl flex flex-col gap-5">
       <div className="flex items-center justify-between gap-4">
@@ -704,7 +728,9 @@ export const StockDetailDrawer: React.FC<{ stock: StrategicStock | null; onClose
   );
 };
 
-export const RiskManagementPanel: React.FC = () => (
+export const RiskManagementPanel: React.FC = () => {
+  const { riskManagementRules } = useStrategicDashboard();
+  return (
   <section className="terminal-card p-7 rounded-2xl flex flex-col gap-5">
     <div className="flex items-center gap-3 text-rose-300">
       <Shield size={20} />
@@ -718,7 +744,8 @@ export const RiskManagementPanel: React.FC = () => (
       ))}
     </div>
   </section>
-);
+  );
+};
 
 export const AlertCenter: React.FC = () => (
   <section className="terminal-card p-7 rounded-2xl flex flex-col gap-4">
@@ -775,9 +802,33 @@ export const PortfolioExposureCard: React.FC = () => (
 
 export const StrategicPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   const [selectedStock, setSelectedStock] = useState<StrategicStock | null>(null);
-  const activeStock = strategicStocks.find((stock) => stock.ticker === activeTicker.toUpperCase()) ?? strategicStocks[0];
+  const [dashboard, setDashboard] = useState<StrategicDashboardData>(emptyStrategicDashboard);
+  const activeStock = dashboard.strategicStocks.find((stock) => stock.ticker === activeTicker.toUpperCase()) ?? dashboard.strategicStocks[0];
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchDashboard = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/strategic/dashboard`);
+        if (!cancelled) setDashboard({ ...emptyStrategicDashboard, ...res.data });
+      } catch (error) {
+        console.error('Failed to fetch strategic dashboard', error);
+      }
+    };
+    fetchDashboard();
+    const interval = window.setInterval(fetchDashboard, 60000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  if (!activeStock) {
+    return <div className="terminal-card p-6 text-sm text-slate-400">Loading backend strategic data...</div>;
+  }
 
   return (
+    <StrategicDashboardContext.Provider value={dashboard}>
     <div className="flex flex-col gap-8">
       <section className="terminal-card p-7 rounded-2xl bg-slate-950/70">
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
@@ -806,7 +857,7 @@ export const StrategicPage: React.FC<{ activeTicker: string }> = ({ activeTicker
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <BuySellDecisionFramework />
-        <SecondaryMacroWarnings indicators={secondaryMacroIndicators} />
+        <SecondaryMacroWarnings indicators={dashboard.secondaryMacroIndicators} />
       </div>
 
       <SectorStrategyPanel />
@@ -829,6 +880,7 @@ export const StrategicPage: React.FC<{ activeTicker: string }> = ({ activeTicker
 
       <StockDetailDrawer stock={selectedStock} onClose={() => setSelectedStock(null)} />
     </div>
+    </StrategicDashboardContext.Provider>
   );
 };
 
