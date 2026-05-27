@@ -1,4 +1,4 @@
-﻿export type StatusVi = 'Tá»‘t' | 'Cáº©n trá»ng' | 'Rá»§i ro' | 'Cáº©n trá»ng nháº¹';
+export type StatusVi = 'Tốt' | 'Cẩn trọng' | 'Rủi ro' | 'Cẩn trọng nhẹ';
 export type AllocationMode = 'Conservative' | 'Balanced' | 'Aggressive';
 
 export interface MacroIndicator {
@@ -30,8 +30,8 @@ export interface StrategicStock {
   liquidityScore: number;
   macroFitScore: number;
   cycleFit: string;
-  creditSensitivity: 'Tháº¥p' | 'Trung bÃ¬nh' | 'Cao';
-  inflationSensitivity: 'Tháº¥p' | 'Trung bÃ¬nh' | 'Cao';
+  creditSensitivity: 'Thấp' | 'Trung bình' | 'Cao';
+  inflationSensitivity: 'Thấp' | 'Trung bình' | 'Cao';
   canslim: {
     c: number;
     a: number;

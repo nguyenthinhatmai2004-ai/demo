@@ -5,30 +5,30 @@ from io import BytesIO
 from typing import Dict, List, Optional
 
 import pandas as pd
-from vnstock import Quote
+from vnstock import Finance, Quote
 
 logger = logging.getLogger("LiveDashboard")
 
 
 SYMBOL_META: Dict[str, Dict[str, str]] = {
-    "FPT": {"company": "FPT Corp", "exchange": "HOSE", "sector": "Cong nghe"},
-    "HPG": {"company": "Hoa Phat", "exchange": "HOSE", "sector": "Thep / vat lieu"},
-    "SSI": {"company": "SSI Securities", "exchange": "HOSE", "sector": "Chung khoan"},
-    "VCI": {"company": "Vietcap", "exchange": "HOSE", "sector": "Chung khoan"},
-    "VND": {"company": "VNDirect", "exchange": "HOSE", "sector": "Chung khoan"},
-    "VCB": {"company": "Vietcombank", "exchange": "HOSE", "sector": "Ngan hang"},
-    "MBB": {"company": "MB Bank", "exchange": "HOSE", "sector": "Ngan hang"},
-    "TCB": {"company": "Techcombank", "exchange": "HOSE", "sector": "Ngan hang"},
-    "ACB": {"company": "ACB", "exchange": "HOSE", "sector": "Ngan hang"},
-    "MWG": {"company": "Mobile World", "exchange": "HOSE", "sector": "Tieu dung"},
-    "PNJ": {"company": "PNJ", "exchange": "HOSE", "sector": "Tieu dung"},
-    "MSN": {"company": "Masan", "exchange": "HOSE", "sector": "Tieu dung"},
-    "VHM": {"company": "Vinhomes", "exchange": "HOSE", "sector": "Bat dong san"},
-    "KDH": {"company": "Khang Dien", "exchange": "HOSE", "sector": "Bat dong san"},
-    "NLG": {"company": "Nam Long", "exchange": "HOSE", "sector": "Bat dong san"},
-    "CTD": {"company": "Coteccons", "exchange": "HOSE", "sector": "Xay dung / dau tu cong"},
-    "HHV": {"company": "Deo Ca", "exchange": "HOSE", "sector": "Ha tang"},
-    "VCG": {"company": "Vinaconex", "exchange": "HNX", "sector": "Xay dung / dau tu cong"},
+    "FPT": {"company": "FPT Corp", "exchange": "HOSE", "sector": "Công nghệ"},
+    "HPG": {"company": "Hòa Phát", "exchange": "HOSE", "sector": "Thép / vật liệu"},
+    "SSI": {"company": "SSI Securities", "exchange": "HOSE", "sector": "Chứng khoán"},
+    "VCI": {"company": "Vietcap", "exchange": "HOSE", "sector": "Chứng khoán"},
+    "VND": {"company": "VNDirect", "exchange": "HOSE", "sector": "Chứng khoán"},
+    "VCB": {"company": "Vietcombank", "exchange": "HOSE", "sector": "Ngân hàng"},
+    "MBB": {"company": "MB Bank", "exchange": "HOSE", "sector": "Ngân hàng"},
+    "TCB": {"company": "Techcombank", "exchange": "HOSE", "sector": "Ngân hàng"},
+    "ACB": {"company": "ACB", "exchange": "HOSE", "sector": "Ngân hàng"},
+    "MWG": {"company": "Mobile World", "exchange": "HOSE", "sector": "Tiêu dùng"},
+    "PNJ": {"company": "PNJ", "exchange": "HOSE", "sector": "Tiêu dùng"},
+    "MSN": {"company": "Masan", "exchange": "HOSE", "sector": "Tiêu dùng"},
+    "VHM": {"company": "Vinhomes", "exchange": "HOSE", "sector": "Bất động sản"},
+    "KDH": {"company": "Khang Điền", "exchange": "HOSE", "sector": "Bất động sản"},
+    "NLG": {"company": "Nam Long", "exchange": "HOSE", "sector": "Bất động sản"},
+    "CTD": {"company": "Coteccons", "exchange": "HOSE", "sector": "Xây dựng / đầu tư công"},
+    "HHV": {"company": "Đèo Cả", "exchange": "HOSE", "sector": "Hạ tầng"},
+    "VCG": {"company": "Vinaconex", "exchange": "HNX", "sector": "Xây dựng / đầu tư công"},
 }
 
 DEFAULT_UNIVERSE = list(SYMBOL_META.keys())
@@ -120,7 +120,7 @@ def build_quant_stock(ticker: str) -> Optional[Dict]:
     macd_line = ema12 - ema26
     high_52 = _vnd(_number(df["high"].tail(252).max()))
     low_52 = _vnd(_number(df["low"].tail(252).min()))
-    meta = SYMBOL_META.get(ticker, {"company": ticker, "exchange": "HOSE", "sector": "Khac"})
+    meta = SYMBOL_META.get(ticker, {"company": ticker, "exchange": "HOSE", "sector": "Khác"})
 
     if close > ma50 > ma200:
         rs = 78
@@ -136,7 +136,7 @@ def build_quant_stock(ticker: str) -> Optional[Dict]:
         "source": "cafef",
         "ticker": ticker,
         "title": f"{ticker} live market update",
-        "summary": "Gia, khoi luong va chi bao ky thuat duoc tinh tu backend qua vnstock.",
+        "summary": "Giá, khối lượng và chỉ báo kỹ thuật được tính từ backend qua vnstock.",
         "url": f"https://s.cafef.vn/hose/{ticker}.chn",
         "publishedAt": datetime.utcnow().isoformat(),
         "category": "Yếu tố hỗ trợ ngành" if change_pct >= 0 else "Rủi ro nợ vay",
@@ -144,6 +144,190 @@ def build_quant_stock(ticker: str) -> Optional[Dict]:
         "impact": "Catalyst ngắn hạn" if change_pct >= 0 else "Sự kiện rủi ro",
         "relatedMetrics": {"changePct": change_pct, "volumeRatio": round(volume / avg_volume20, 2)},
     }
+
+
+def _latest_period_columns(df: pd.DataFrame) -> List[str]:
+    return [col for col in df.columns if col not in {"item", "item_en", "item_id"}]
+
+
+def _row_value(df: pd.DataFrame, item_id: str, period_col: Optional[str] = None, default: float = 0.0) -> float:
+    if df is None or df.empty or "item_id" not in df.columns:
+        return default
+    rows = df[df["item_id"].astype(str).str.lower() == item_id.lower()]
+    if rows.empty:
+        return default
+    columns = _latest_period_columns(df)
+    if not columns:
+        return default
+    row = rows.iloc[0]
+    if period_col is not None:
+        for idx, col in enumerate(df.columns):
+            if idx >= 3 and str(col) == str(period_col):
+                return _number(row.iloc[idx], default)
+    return _number(row.iloc[3], default)
+
+
+@lru_cache(maxsize=128)
+def fetch_financial_frame(ticker: str, statement: str) -> pd.DataFrame:
+    ticker = ticker.upper().strip()
+    try:
+        finance = Finance(symbol=ticker, source="VCI")
+        if statement == "ratio":
+            return finance.ratio(period="year", lang="en")
+        if statement == "income":
+            return finance.income_statement(period="year", lang="en")
+        if statement == "balance":
+            return finance.balance_sheet(period="year", lang="en")
+        if statement == "cashflow":
+            return finance.cash_flow(period="year", lang="en")
+    except Exception as exc:
+        logger.warning("finance %s failed for %s: %s", statement, ticker, exc)
+    return pd.DataFrame()
+
+
+def build_quant_stock(ticker: str) -> Optional[Dict]:
+    ticker = ticker.upper().strip()
+    df = fetch_history_frame(ticker)
+    if df.empty or len(df) < 50:
+        return None
+
+    latest = df.iloc[-1]
+    prev = df.iloc[-2] if len(df) >= 2 else latest
+    close = _vnd(_number(latest["close"]))
+    prev_close = _vnd(_number(prev["close"], close))
+    change_pct = round(((close - prev_close) / prev_close) * 100, 2) if prev_close else 0
+    volume = int(_number(latest["volume"]))
+    avg_volume20 = int(max(1, _number(df["volume"].tail(20).mean())))
+    close_series = df["close"]
+    ma20 = _vnd(_number(close_series.rolling(20).mean().iloc[-1]))
+    ma50 = _vnd(_number(close_series.rolling(50).mean().iloc[-1]))
+    ma100 = _vnd(_number(close_series.rolling(100).mean().iloc[-1] if len(df) >= 100 else close_series.mean()))
+    ma150 = _vnd(_number(close_series.rolling(150).mean().iloc[-1] if len(df) >= 150 else close_series.mean()))
+    ma200 = _vnd(_number(close_series.rolling(200).mean().iloc[-1] if len(df) >= 200 else close_series.mean()))
+    ema12 = close_series.ewm(span=12, adjust=False).mean()
+    ema26 = close_series.ewm(span=26, adjust=False).mean()
+    macd_line = ema12 - ema26
+    high_52 = _vnd(_number(df["high"].tail(252).max()))
+    low_52 = _vnd(_number(df["low"].tail(252).min()))
+    meta = SYMBOL_META.get(ticker, {"company": ticker, "exchange": "HOSE", "sector": "Khac"})
+    rs = 78 if close > ma50 > ma200 else 62 if close > ma200 else 42
+    profit_growth = round(max(-30, min(80, change_pct * 8 + (close / max(ma200, 1) - 1) * 60)), 1)
+    revenue_growth = round(profit_growth * 0.6, 1)
+    return {
+        "ticker": ticker,
+        "company": meta["company"],
+        "exchange": meta["exchange"],
+        "sector": meta["sector"],
+        "industry": meta["sector"],
+        "open": _vnd(_number(latest["open"])),
+        "high": _vnd(_number(latest["high"])),
+        "low": _vnd(_number(latest["low"])),
+        "close": close,
+        "changePct": change_pct,
+        "volume": volume,
+        "avgVolume20": avg_volume20,
+        "valueTraded": int(volume * close),
+        "marketCap": "N/A",
+        "freeFloat": 0,
+        "foreignRoom": 0,
+        "ma20": ma20,
+        "ma50": ma50,
+        "ma100": ma100,
+        "ma150": ma150,
+        "ma200": ma200,
+        "ema20": _vnd(_ema(close_series, 20)),
+        "ema50": _vnd(_ema(close_series, 50)),
+        "rsi14": _rsi(close_series),
+        "macd": round(_number(macd_line.iloc[-1]) * 1000, 2),
+        "macdSignal": round(_number(macd_line.ewm(span=9, adjust=False).mean().iloc[-1]) * 1000, 2),
+        "atr14": max(1, _vnd(_atr(df))),
+        "obvTrend": "Up" if close > prev_close and volume >= avg_volume20 else "Down" if close < prev_close else "Flat",
+        "mfi": max(0, min(100, 50 + change_pct * 5 + (volume / avg_volume20 - 1) * 10)),
+        "cmf": round(max(-1, min(1, (close - _vnd(_number(latest["low"]))) / max(1, _vnd(_number(latest["high"])) - _vnd(_number(latest["low"]))) - 0.5)), 2),
+        "volumeOscillator": round((volume / avg_volume20 - 1) * 100, 1),
+        "relativeStrengthVNIndex": rs,
+        "relativeStrengthSector": max(0, min(100, rs - 3)),
+        "pivot": high_52,
+        "support": max(1, min(low_52, ma50)),
+        "resistance": high_52,
+        "baseWeeks": 5 if abs(close - ma50) / max(close, 1) < 0.08 else 3,
+        "higherHighHigherLow": close > ma50 > ma200,
+        "ma200Slope": "Up" if ma50 > ma200 else "Down" if ma50 < ma200 * 0.95 else "Flat",
+        "news": [],
+        "earnings": {
+            "profitGrowthYoY": profit_growth,
+            "revenueGrowthYoY": revenue_growth,
+            "grossMarginChange": round(profit_growth / 20, 1),
+            "netMarginChange": round(profit_growth / 30, 1),
+            "epsGrowthYoY": profit_growth,
+            "coreBusinessQuality": _quality_from_growth(profit_growth),
+        },
+    }
+
+
+def get_live_ratios(ticker: str) -> Dict:
+    ticker = ticker.upper().strip()
+    ratios = fetch_financial_frame(ticker, "ratio")
+    quote = build_quant_stock(ticker)
+    latest_col = None
+
+    pe = _row_value(ratios, "pe_ratio", latest_col)
+    pb = _row_value(ratios, "pb_ratio", latest_col)
+    roe = _row_value(ratios, "roe", latest_col) * 100
+    margin = (_row_value(ratios, "net_margin", latest_col) or _row_value(ratios, "gross_margin", latest_col)) * 100
+    debt_equity = _row_value(ratios, "debt_to_equity", latest_col) or _row_value(ratios, "debtPerEquity", latest_col)
+    eps = round((quote["close"] / pe), 0) if quote and pe else 0
+
+    def status(value: float, good: float, warning: float, lower_is_better: bool = False) -> str:
+        if value == 0:
+            return "neutral"
+        if lower_is_better:
+            return "good" if value <= good else "warning" if value <= warning else "danger"
+        return "good" if value >= good else "neutral" if value >= warning else "warning"
+
+    return {
+        "pe": round(pe, 2),
+        "pb": round(pb, 2),
+        "roe": round(roe, 2),
+        "margin": round(margin, 2),
+        "debt_equity": round(debt_equity, 2),
+        "eps": eps,
+        "status": {
+            "pe": status(pe, 12, 20, lower_is_better=True),
+            "roe": status(roe, 18, 10),
+            "margin": status(margin, 15, 8),
+            "debt_equity": status(debt_equity, 1, 2, lower_is_better=True),
+        },
+        "notes": {
+            "pe": "Vnstock/VCI latest available P/E.",
+            "roe": "Vnstock/VCI latest available ROE.",
+            "margin": "Vnstock/VCI latest available net/gross margin.",
+            "debt_equity": "Vnstock/VCI latest available debt/equity.",
+        },
+        "source": "vnstock Finance.ratio(source=VCI)",
+        "period": "latest",
+    }
+
+
+def get_live_financial_history(ticker: str, years: int = 6) -> List[Dict]:
+    income = fetch_financial_frame(ticker, "income")
+    ratios = fetch_financial_frame(ticker, "ratio")
+    period_cols = _latest_period_columns(income)[:years]
+    rows = []
+    for col in period_cols:
+        revenue = _row_value(income, "net_sales", col) or _row_value(income, "sales", col)
+        profit = (
+            _row_value(income, "net_profit_loss_after_tax", col)
+            or _row_value(income, "attributable_to_parent_company", col)
+        )
+        margin = _row_value(ratios, "net_margin", col) * 100
+        rows.append({
+            "year": str(col),
+            "revenue": round(revenue / 1_000_000_000),
+            "profit": round(profit / 1_000_000_000),
+            "margin": round(margin, 2),
+        })
+    return rows
 
     return {
         "ticker": ticker,
@@ -266,7 +450,7 @@ def _score_from_stock(stock: Dict) -> Dict:
             "baseQuality": 75 if stock["baseWeeks"] >= 5 else 60,
             "breakoutQuality": 80 if close >= stock["pivot"] * 0.97 else 60,
             "riskReward": 75,
-            "status": "Ready to Buy" if trend_template >= 85 else "Near Pivot" if close > ma200 else "Wait for Confirmation",
+            "status": "Sẵn sàng mua" if trend_template >= 85 else "Gần pivot" if close > ma200 else "Chờ xác nhận",
         },
     }
 
@@ -285,12 +469,12 @@ def get_strategic_dashboard() -> Dict:
             "price": close,
             "changePct": stock["changePct"],
             "marketCap": stock["marketCap"],
-            "liquidity": "Cao" if stock["volume"] > stock["avgVolume20"] else "Trung binh",
+            "liquidity": "Cao" if stock["volume"] > stock["avgVolume20"] else "Trung bình",
             "liquidityScore": min(100, max(30, int(55 + stock["volumeOscillator"]))),
-            "macroFitScore": 80 if "Cong nghe" in stock["sector"] else 72,
-            "cycleFit": "Selective risk-on, backend live scan",
-            "creditSensitivity": "Thap" if "Cong nghe" in stock["sector"] else "Trung binh",
-            "inflationSensitivity": "Thap" if "Cong nghe" in stock["sector"] else "Trung binh",
+            "macroFitScore": 80 if "Công nghệ" in stock["sector"] else 72,
+            "cycleFit": "Risk-on chọn lọc, backend live scan",
+            "creditSensitivity": "Thấp" if "Công nghệ" in stock["sector"] else "Trung bình",
+            "inflationSensitivity": "Thấp" if "Công nghệ" in stock["sector"] else "Trung bình",
             "canslim": scores["canslim"],
             "sepa": scores["sepa"],
             "catalystScore": 70 if stock["changePct"] >= 0 else 45,
@@ -308,12 +492,12 @@ def get_strategic_dashboard() -> Dict:
 
     return {
         "coreMacroIndicators": [
-            {"id": "credit_to_gdp", "name": "Du no tin dung / GDP", "value": 125, "unit": "%", "status": "Rui ro", "category": "Credit Leverage", "description": "Backend macro placeholder; replace with official GSO/SBV feed when available."},
-            {"id": "public_debt_to_gdp", "name": "No cong / GDP", "value": 37, "unit": "%", "status": "Tot", "category": "Fiscal Room", "description": "Backend macro placeholder."},
-            {"id": "cpi_current", "name": "CPI hien tai", "value": 3.2, "unit": "%", "status": "Tot", "category": "Inflation", "description": "Backend macro placeholder."},
-            {"id": "cpi_pressure", "name": "CPI ap luc", "value": 3.9, "unit": "%", "status": "Can trong", "category": "Inflation", "description": "Backend macro placeholder."},
-            {"id": "ppi", "name": "PPI", "value": 2.1, "unit": "%", "status": "Can trong", "category": "Inflation Pipeline", "description": "Backend macro placeholder."},
-            {"id": "gdp_growth", "name": "Tang truong GDP", "value": 6.8, "unit": "%", "status": "Tot", "category": "Growth", "description": "Backend macro placeholder."},
+            {"id": "credit_to_gdp", "name": "Dư nợ tín dụng / GDP", "value": 125, "unit": "%", "status": "Rủi ro", "category": "Credit Leverage", "description": "Backend macro placeholder; replace with official GSO/SBV feed when available."},
+            {"id": "public_debt_to_gdp", "name": "Nợ công / GDP", "value": 37, "unit": "%", "status": "Tốt", "category": "Fiscal Room", "description": "Backend macro placeholder."},
+            {"id": "cpi_current", "name": "CPI hiện tại", "value": 3.2, "unit": "%", "status": "Tốt", "category": "Inflation", "description": "Backend macro placeholder."},
+            {"id": "cpi_pressure", "name": "CPI áp lực", "value": 3.9, "unit": "%", "status": "Cẩn trọng", "category": "Inflation", "description": "Backend macro placeholder."},
+            {"id": "ppi", "name": "PPI", "value": 2.1, "unit": "%", "status": "Cẩn trọng", "category": "Inflation Pipeline", "description": "Backend macro placeholder."},
+            {"id": "gdp_growth", "name": "Tăng trưởng GDP", "value": 6.8, "unit": "%", "status": "Tốt", "category": "Growth", "description": "Backend macro placeholder."},
         ],
         "secondaryMacroIndicators": [
             {"id": "policy_rate", "name": "Lai suat dieu hanh", "value": 4.5, "unit": "%", "status": "Tot"},
@@ -514,6 +698,103 @@ def get_research_model(ticker: str) -> Dict:
         ],
         "sources": data_sources(),
     }
+
+
+def get_research_model(ticker: str) -> Dict:
+    ticker = ticker.upper().strip()
+    quote = build_quant_stock(ticker)
+    meta = SYMBOL_META.get(ticker, {"company": ticker, "exchange": "HOSE", "sector": "Unknown"})
+    ratios = get_live_ratios(ticker)
+    history = get_live_financial_history(ticker)
+    current_price = quote["close"] if quote else 0
+    technical_score = min(95, max(35, quote["relativeStrengthVNIndex"] if quote else 60))
+    roe = float(ratios.get("roe") or 0)
+    margin = float(ratios.get("margin") or 0)
+    pe = float(ratios.get("pe") or 0)
+    eps = float(ratios.get("eps") or 0)
+    growth_rate = 8.0
+    if len(history) >= 2 and history[1].get("profit"):
+        growth_rate = round(((history[0]["profit"] - history[1]["profit"]) / abs(history[1]["profit"])) * 100, 1)
+
+    target_pe = max(8.0, min(24.0, (pe or 12.0) * (1.08 if roe >= 18 else 0.95)))
+    base_target = round(eps * target_pe) if eps else round(current_price * (1.1 if technical_score >= 70 else 1.02))
+    if current_price and (base_target / current_price > 1.6 or base_target / current_price < 0.65):
+        base_target = round(current_price * (1.12 if technical_score >= 70 else 1.03))
+    bull_target = round(base_target * 1.15)
+    bear_target = round(current_price * 0.88) if current_price else 0
+    upside = round((base_target / current_price - 1) * 100, 1) if current_price else 0
+    recommendation = "MUA" if upside >= 15 and technical_score >= 65 else "KHẢ QUAN" if technical_score >= 60 else "TRUNG LẬP"
+    risk_level = "Trung bình" if quote and quote["atr14"] / max(current_price, 1) < 0.06 else "Cao"
+    scenario = {
+        "bear": {"target": bear_target, "probability": 25, "driver": "Giá phá vỡ hỗ trợ hoặc biên lợi nhuận suy yếu"},
+        "base": {"target": base_target, "probability": 50, "driver": "Định giá dựa trên EPS/P-E và dữ liệu vnstock/VCI"},
+        "bull": {"target": bull_target, "probability": 25, "driver": "Catalyst lợi nhuận và dòng tiền xác nhận nhanh hơn kỳ vọng"},
+    }
+    weighted_target = round(sum(s["target"] * s["probability"] for s in scenario.values()) / 100)
+    model = {
+        "ticker": ticker,
+        "company_name": meta["company"],
+        "exchange": meta["exchange"],
+        "industry": meta["sector"],
+        "recommendation": recommendation,
+        "risk_level": risk_level,
+        "holding_period": "Đánh giá lại sau kỳ KQKD tới",
+        "confidence_score": int(min(88, max(55, technical_score * 0.55 + min(roe, 35)))),
+        "wacc": 11.5,
+        "terminal_growth": 2.0,
+        "growth_rate": growth_rate,
+        "target_pe": round(target_pe, 1),
+        "forward_eps": round(eps),
+        "base_target": base_target,
+        "bull_target": bull_target,
+        "bear_target": bear_target,
+        "current_price": current_price,
+        "target_price": base_target,
+        "weighted_target": weighted_target,
+        "upside": upside,
+        "scenario": scenario,
+        "executive_summary": [
+            f"{ticker} được phân tích từ giá/khối lượng vnstock và chỉ số tài chính VCI.",
+            f"ROE {roe:.1f}%, biên lợi nhuận {margin:.1f}% và P/E {pe:.1f}x là đầu vào chính của mô hình.",
+            f"Điểm kỹ thuật hiện tại {technical_score:.0f}/100; cần xác nhận bằng thanh khoản và KQKD mới nhất.",
+        ],
+        "catalysts": [
+            {"title": "Kỳ công bố KQKD tới", "detail": "Theo dõi tăng trưởng doanh thu, lợi nhuận và biên lợi nhuận từ báo cáo tài chính qua vnstock/VCI.", "impact": "Trung bình", "timeline": "Quý tới"},
+            {"title": "Xác nhận khối lượng", "detail": "Nhịp vượt pivot với khối lượng trên trung bình 20 phiên sẽ cải thiện xác suất điểm mua.", "impact": "Trung bình", "timeline": "Theo thị trường"},
+        ],
+        "risks": [
+            {"title": "Rủi ro dữ liệu và định giá", "impact": "Trung bình", "content": "Mô hình dùng dữ liệu công khai qua vnstock/VCI; consensus từ nguồn trả phí chưa được tích hợp."},
+            {"title": "Rủi ro kỹ thuật", "impact": "Trung bình", "content": "Cần cắt lỗ nếu giá phá vỡ hỗ trợ/MA quan trọng với thanh khoản cao."},
+        ],
+        "history": history,
+        "ratio_notes": ratios.get("notes", {}),
+        "forecast_period_years": len(history),
+        "final_opinion": (
+            f"{ticker} đang có khuyến nghị {recommendation} với giá mục tiêu {base_target:,} VND/cp, "
+            f"upside {upside}% dựa trên giá hiện tại {current_price:,} VND/cp. "
+            f"Luận điểm chính đến từ ROE {roe:.1f}%, biên lợi nhuận {margin:.1f}%, P/E {pe:.1f}x "
+            "và trạng thái kỹ thuật/thanh khoản lấy từ vnstock. Cần theo dõi rủi ro phá vỡ hỗ trợ và cập nhật KQKD mới."
+        ),
+        "scores": {
+            "fundamental": int(min(95, max(35, 45 + roe + margin / 2))),
+            "technical": technical_score,
+            "momentum": min(95, max(35, 55 + (quote["changePct"] if quote else 0) * 8)),
+            "risk": 82 if risk_level.startswith("Trung") else 65,
+        },
+        "valuation_bridge": [
+            {"label": "EPS dự phóng", "value": round(eps), "unit": "VND/cp"},
+            {"label": "P/E mục tiêu", "value": round(target_pe, 1), "unit": "x"},
+            {"label": "Giá mục tiêu cơ sở", "value": base_target, "unit": "VND/cp"},
+            {"label": "Giá mục tiêu xác suất", "value": weighted_target, "unit": "VND/cp"},
+        ],
+        "assumptions": [
+            f"Tăng trưởng lợi nhuận gần nhất: {growth_rate}%.",
+            f"WACC: 11.5%, terminal growth: 2.0%.",
+            f"EPS ước tính: {round(eps):,} VND/cp và P/E mục tiêu {round(target_pe, 1)}x.",
+        ],
+        "sources": data_sources(),
+    }
+    return model
 
 
 def build_research_pdf(ticker: str) -> bytes:

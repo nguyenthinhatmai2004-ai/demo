@@ -133,32 +133,24 @@ const InvestmentPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) =>
            </div>
         </div>
       </div>
-
       {/* TACTICAL MARKET ALERTS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-         <div className="p-6 bg-blue-600/5 border border-blue-500/20 rounded-3xl flex flex-col gap-3">
-            <div className="flex items-center gap-2 text-blue-400">
-               <Zap size={16} />
-               <span className="text-[9px] font-black uppercase tracking-widest">Xác nhận Pocket Pivot</span>
-            </div>
-            <p className="text-[11px] text-slate-300 font-medium leading-relaxed italic">"FPT đã vượt qua vùng cung 134.5 với khối lượng lớn. Điểm mua Pocket Pivot cực chuẩn trong nền giá Stage 2."</p>
-         </div>
-         <div className="p-6 bg-emerald-600/5 border border-emerald-500/20 rounded-3xl flex flex-col gap-3">
-            <div className="flex items-center gap-2 text-emerald-400">
-               <Shield size={16} />
-               <span className="text-[9px] font-black uppercase tracking-widest">Kiệt cung Xác nhận</span>
-            </div>
-            <p className="text-[11px] text-slate-300 font-medium leading-relaxed italic">"HPG xuất hiện 3 phiên No Supply Bar liên tiếp. Khối lượng cạn kiệt cho thấy lực bán đã hoàn toàn biến mất."</p>
-         </div>
-         <div className="p-6 bg-orange-600/5 border border-orange-500/20 rounded-3xl flex flex-col gap-3">
-            <div className="flex items-center gap-2 text-orange-400">
-               <Activity size={16} />
-               <span className="text-[9px] font-black uppercase tracking-widest">VCP Setup</span>
-            </div>
-            <p className="text-[11px] text-slate-300 font-medium leading-relaxed italic">"Dòng thép và chứng khoán đang hình thành mô hình thu hẹp biên độ VCP chặt chẽ. Chờ đợi nhịp Breakout để mở vị thế."</p>
-         </div>
-      </div>
-
+      {(strategy?.tactical_alerts || []).length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {strategy.tactical_alerts.map((alert: any, index: number) => {
+            const tone = alert.level === 'positive' ? 'emerald' : alert.level === 'warning' ? 'orange' : 'blue';
+            const Icon = alert.level === 'positive' ? Shield : alert.level === 'warning' ? Activity : Zap;
+            return (
+              <div key={`${alert.title}-${index}`} className={`p-6 bg-${tone}-600/5 border border-${tone}-500/20 rounded-3xl flex flex-col gap-3`}>
+                <div className={`flex items-center gap-2 text-${tone}-400`}>
+                  <Icon size={16} />
+                  <span className="text-[9px] font-black uppercase tracking-widest">{alert.title}</span>
+                </div>
+                <p className="text-[11px] text-slate-300 font-medium leading-relaxed italic">"{alert.message}"</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
       {/* POSITIONS SECTION */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
          <section className="bg-gray-900/30 rounded-3xl border border-gray-800 p-8 shadow-xl">

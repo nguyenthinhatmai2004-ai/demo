@@ -142,24 +142,6 @@ const EquityMatrixChart: React.FC<EquityMatrixChartProps> = ({ ticker }) => {
 
   useEffect(() => {
     if (data.length === 0) {
-        // Fallback mock data if API fails to provide data
-        const mockData = [];
-        const now = new Date();
-        for (let i = 100; i >= 0; i--) {
-            const d = new Date(now);
-            d.setDate(d.getDate() - i);
-            const timeStr = d.toISOString().split('T')[0];
-            const basePrice = 100 + Math.sin(i / 10) * 20 + Math.random() * 5;
-            mockData.push({
-                time: timeStr,
-                open: basePrice,
-                high: basePrice + 2,
-                low: basePrice - 2,
-                close: basePrice + 1,
-                volume: Math.floor(Math.random() * 1000000)
-            });
-        }
-        processChartData(mockData);
         return;
     }
     processChartData(data);

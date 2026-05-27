@@ -9,6 +9,7 @@ const API_BASE = 'http://127.0.0.1:8001/api';
 const TraderPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   const [botRunning, setBotRunning] = useState(false);
   const [balance, setBalance] = useState(0);
+  const [baselineCapital, setBaselineCapital] = useState(0);
   const [trades, setTrades] = useState<any[]>([]);
   const [signals, setSignals] = useState<any>(null);
   const [aiPrompt, setAiPrompt] = useState('');
@@ -40,6 +41,7 @@ const TraderPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
     setBalance(balRes.balance);
     setTrades(historyRes);
     setBotRunning(statusRes.running);
+    setBaselineCapital(statusRes.baseline_capital || 0);
     setSignals(signalsRes);
   };
 
@@ -231,7 +233,9 @@ const TraderPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                   <LineChart size={20} />
                   <h3 className="font-black text-[10px] uppercase tracking-[0.2em]">Equity Performance (Alpha Test)</h3>
                </div>
-               <span className="text-xl font-black text-emerald-400 tabular-nums">+{((balance - 1000000000) / 1000000000 * 100).toFixed(2)}%</span>
+               <span className="text-xl font-black text-emerald-400 tabular-nums">
+                  {baselineCapital > 0 ? `${((balance - baselineCapital) / baselineCapital * 100).toFixed(2)}%` : 'N/A'}
+               </span>
             </div>
             <div ref={chartContainerRef} className="w-full" />
          </div>

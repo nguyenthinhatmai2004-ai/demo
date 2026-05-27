@@ -99,8 +99,11 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
     }
   };
 
-  const latestReportDate = reports?.[0]?.date || new Date().toLocaleString('vi-VN');
-  const researchId = `${activeTicker.toUpperCase()}-${new Date().getFullYear()}-AUTO`;
+  const latestReportDate = prospects?.updated_at || reports?.[0]?.date || '';
+  const researchId = prospects?.research_id || '';
+  const ratioNotes = prospects?.ratio_notes || {};
+  const finalOpinion = prospects?.final_opinion || '';
+  const forecastPeriodYears = valuation?.forecast_period_years || prospects?.forecast_period_years || valuation?.history?.length || 0;
 
   return (
     <div className="flex gap-8 max-w-[1600px] mx-auto relative">
@@ -253,10 +256,10 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Điểm tổng hợp đa nhân tố</span>
                  <div className="flex flex-col gap-4">
                     {[
-                       { label: 'Fundamental', score: prospects?.scores?.fundamental || 70, color: 'bg-emerald-500' },
-                       { label: 'Technical', score: prospects?.scores?.technical || 70, color: 'bg-blue-500' },
-                       { label: 'Momentum', score: prospects?.scores?.momentum || 70, color: 'bg-purple-500' },
-                       { label: 'Risk Score', score: prospects?.scores?.risk || 70, color: 'bg-rose-500' },
+                       { label: 'Fundamental', score: prospects?.scores?.fundamental ?? 0, color: 'bg-emerald-500' },
+                       { label: 'Technical', score: prospects?.scores?.technical ?? 0, color: 'bg-blue-500' },
+                       { label: 'Momentum', score: prospects?.scores?.momentum ?? 0, color: 'bg-purple-500' },
+                       { label: 'Risk Score', score: prospects?.scores?.risk ?? 0, color: 'bg-rose-500' },
                     ].map(f => (
                        <div key={f.label} className="flex flex-col gap-1.5">
                           <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-tight">
@@ -331,10 +334,10 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
 
               <div className="lg:col-span-4 flex flex-col gap-4">
                  {[
-                    { label: 'P/E Ratio', value: ratios?.pe, sub: 'Trung bình ngành: 14.2x', status: ratios?.status?.pe },
-                    { label: 'ROE (%)', value: ratios?.roe, sub: 'Khả năng sinh lời vượt trội', status: ratios?.status?.roe },
-                    { label: 'Net Margin (%)', value: ratios?.margin, sub: 'Biên lợi nhuận gộp cải thiện', status: ratios?.status?.margin },
-                    { label: 'D/E Ratio', value: ratios?.debt_equity, sub: 'Đòn bẩy an toàn', status: ratios?.status?.debt_equity },
+                    { label: 'P/E Ratio', value: ratios?.pe, sub: ratioNotes.pe || ratios?.notes?.pe || '', status: ratios?.status?.pe },
+                    { label: 'ROE (%)', value: ratios?.roe, sub: ratioNotes.roe || ratios?.notes?.roe || '', status: ratios?.status?.roe },
+                    { label: 'Net Margin (%)', value: ratios?.margin, sub: ratioNotes.margin || ratios?.notes?.margin || '', status: ratios?.status?.margin },
+                    { label: 'D/E Ratio', value: ratios?.debt_equity, sub: ratioNotes.debt_equity || ratios?.notes?.debt_equity || '', status: ratios?.status?.debt_equity },
                  ].map(r => {
                     let colorClass = 'text-slate-400 group-hover:text-blue-400';
                     let borderClass = 'hover:border-blue-500/30';
@@ -360,9 +363,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                     );
                  })}
                  <div className="mt-auto p-6 bg-blue-600/5 border border-blue-500/10 rounded-2xl">
-                    <p className="text-[11px] font-bold text-slate-400 italic leading-relaxed">
-                       "Nhận định của Analyst: Doanh nghiệp duy trì chất lượng tài sản tốt và dòng tiền ổn định, đảm bảo khả năng chi trả cổ tức cao."
-                    </p>
+                    <p className="text-[11px] font-bold text-slate-400 italic leading-relaxed">"{finalOpinion}"</p>
                  </div>
               </div>
            </div>
@@ -450,7 +451,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                  { label: 'WACC', value: valuation?.wacc, suffix: '%', icon: Calculator },
                  { label: 'Tăng trưởng (g)', value: valuation?.growth_rate, suffix: '%', icon: TrendingUp },
                  { label: 'Biên an toàn', value: valuation?.upside, suffix: '%', icon: Shield },
-                 { label: 'Kỳ dự báo', value: '5', suffix: ' Năm', icon: Clock },
+                 { label: 'Kỳ dự báo', value: forecastPeriodYears || 'N/A', suffix: forecastPeriodYears ? ' Năm' : '', icon: Clock },
               ].map(item => (
                  <div key={item.label} className="p-6 bg-black/40 border border-white/5 rounded-2xl flex flex-col gap-2 hover:border-orange-500/20 transition-all">
                     <div className="flex items-center gap-3">
@@ -552,7 +553,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                              </div>
                           </td>
                           <td className="p-6 border-b border-slate-800/50 text-center">
-                             <span className="px-3 py-1 bg-blue-500/10 text-blue-400 rounded text-[9px] font-black uppercase">Khả quan</span>
+                             <span className="px-3 py-1 bg-blue-500/10 text-blue-400 rounded text-[9px] font-black uppercase">{r.recommendation || prospects?.recommendation || 'N/A'}</span>
                           </td>
                           <td className="p-6 border-b border-slate-800/50 text-right font-black tabular-nums">
                              {(r.target_price || prospects?.consensus?.avg_target).toLocaleString()} ₫
@@ -605,9 +606,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                  <Award size={24} />
                  <h3 className="text-xs font-black uppercase tracking-[0.5em]">Quan điểm cuối cùng của Analyst</h3>
               </div>
-              <p className="text-lg font-bold text-slate-200 leading-relaxed italic">
-                 "Chúng tôi duy trì khuyến nghị <span className="text-emerald-400 underline">{prospects?.recommendation}</span> đối với cổ phiếu {activeTicker} với giá mục tiêu 12 tháng là {prospects?.target_price?.toLocaleString()} ₫/cp. Luận điểm chính đến từ sự bùng nổ lợi nhuận mảng công nghệ/thép và định giá còn hấp dẫn so với tiềm năng tăng trưởng. Tuy nhiên, nhà đầu tư nên theo dõi sát các nhịp điều chỉnh kỹ thuật để tối ưu hóa điểm mua."
-              </p>
+              <p className="text-lg font-bold text-slate-200 leading-relaxed italic">"{finalOpinion}"</p>
               <div className="flex items-center gap-8 mt-4 pt-6 border-t border-white/5">
                  <div className="flex flex-col gap-1">
                     <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Thời gian cập nhật</span>

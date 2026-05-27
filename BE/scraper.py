@@ -32,10 +32,6 @@ class NewsAggregator:
                 all_news.extend(res)
         
         # Nếu không có tin thực tế, thêm dữ liệu thông minh
-        if not all_news or len(all_news) < 3:
-            logger.warning(f"No enough real news found for {ticker}, adding mock alerts.")
-            all_news.extend(self._get_mock_data(ticker))
-            
         return all_news[:limit]
 
     async def scrape_cafef(self, ticker: str, limit: int) -> List[Dict]:
@@ -152,23 +148,3 @@ class NewsAggregator:
         if any(k in t for k in ["lợi nhuận", "lãi", "lỗ", "kqkd"]): return "EARNINGS"
         if any(k in t for k in ["kế hoạch", "đhcđ", "đại hội"]): return "PLANS"
         return "GENERAL"
-
-    def _get_mock_data(self, ticker: str) -> List[Dict]:
-        return [
-            {
-                "title": f"Dòng tiền thông minh đang hướng về {ticker} nhờ kỳ vọng tăng trưởng đột phá.",
-                "link": f"https://vnstocks.com/news/{ticker.lower()}-1",
-                "source": "Terminal Intelligence",
-                "category": "MARKET_RADAR",
-                "ticker": ticker,
-                "time": "Vừa xong"
-            },
-            {
-                "title": f"Phân tích kỹ thuật: {ticker} đang tích lũy trong mô hình chiếc cốc tay cầm.",
-                "link": f"https://vnstocks.com/news/{ticker.lower()}-2",
-                "source": "Chart Bot",
-                "category": "TECHNICAL",
-                "ticker": ticker,
-                "time": "10 phút trước"
-            }
-        ]

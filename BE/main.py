@@ -16,7 +16,7 @@ from vnstock import Quote
 from database import create_db_and_tables, get_session, News, MacroIndicator, AITradeLog, Watchlist, StrategyScore, engine
 from scraper import NewsAggregator
 from services import StrategyEvaluator, MacroEngine, QuantTrader, TelegramService, BrokerTrader, OpenAICodexAdvisor
-from live_dashboard import get_quant_dashboard, get_strategic_dashboard, data_sources, get_research_model, build_research_pdf
+from live_dashboard import get_quant_dashboard, get_strategic_dashboard, data_sources, get_research_model, build_research_pdf, get_live_ratios
 
 # Load environment variables
 load_dotenv()
@@ -117,7 +117,7 @@ class VNStockTerminalApp:
                             })
                         await asyncio.sleep(0.1)
                     except: continue
-                return result if result else [{"ticker": "FPT", "price": 135.2, "change": 0.5}]
+                return result
             except Exception as e:
                 logger.error(f"Ticker Tape Error: {e}")
                 return []
@@ -150,27 +150,8 @@ class VNStockTerminalApp:
             except Exception as e:
                 logger.error(f"Full History Fetch Error: {e}")
                 
-            # 2. Fallback: Dữ liệu "toàn vòng đời" Synthetic (5000 phiên ~ 20 năm)
-            logger.warning(f"Using ultra-long synthetic fallback for {ticker}")
-            base_prices = {"FPT": 135.2, "SSI": 38.1, "HPG": 28.5, "VCB": 92.4}
-            base = base_prices.get(ticker, 50.0) / 10 
-            history = []
-            current_date = datetime.now()
-            for i in range(5000, 0, -1):
-                date_str = (current_date - timedelta(days=int(i * 1.4))).strftime("%Y-%m-%d")
-                growth_bias = 0.0005 
-                change = base * (0.015 * random.uniform(-1.0, 1.2) + growth_bias)
-                open_p = base
-                close_p = open_p + change
-                history.append({
-                    "time": date_str, "open": round(open_p, 1), 
-                    "high": round(max(open_p, close_p) + (base * 0.008), 1),
-                    "low": round(min(open_p, close_p) - (base * 0.008), 1), 
-                    "close": round(close_p, 1),
-                    "volume": random.randint(500000, 15000000)
-                })
-                base = max(close_p, 0.1)
-            return history
+            logger.warning(f"No vnstock history available for {ticker}")
+            return []
 
         @self.app.get("/api/market/intraday/{ticker}")
         async def get_intraday(ticker: str):
@@ -317,59 +298,7 @@ class VNStockTerminalApp:
         @self.app.get("/api/finance/ratios/{ticker}")
         async def get_ratios(ticker: str):
             ticker = ticker.upper()
-            ratios = {
-                "FPT": {
-                    "pe": 22.4, "pb": 5.8, "roe": 28.5, "margin": 14.2, "debt_equity": 0.42, "eps": 6050,
-                    "status": {"pe": "warning", "roe": "good", "margin": "good", "debt_equity": "good"},
-                    "notes": {
-                        "pe": "Trung bình ngành: 14.2x",
-                        "roe": "Khả năng sinh lời vượt trội",
-                        "margin": "Biên lợi nhuận gộp cải thiện",
-                        "debt_equity": "Đòn bẩy an toàn"
-                    }
-                },
-                "SSI": {
-                    "pe": 18.2, "pb": 2.1, "roe": 14.5, "margin": 32.8, "debt_equity": 1.25, "eps": 2100,
-                    "status": {"pe": "neutral", "roe": "good", "margin": "good", "debt_equity": "warning"},
-                    "notes": {
-                        "pe": "Định giá trung tính theo chu kỳ",
-                        "roe": "ROE ổn định theo chu kỳ thị trường",
-                        "margin": "Biên lợi nhuận môi giới cải thiện",
-                        "debt_equity": "Đòn bẩy cao, cần quản trị rủi ro"
-                    }
-                },
-                "HPG": {
-                    "pe": 16.5, "pb": 1.7, "roe": 11.8, "margin": 8.5, "debt_equity": 0.62, "eps": 1750,
-                    "status": {"pe": "good", "roe": "neutral", "margin": "warning", "debt_equity": "good"},
-                    "notes": {
-                        "pe": "Định giá hấp dẫn so với lịch sử",
-                        "roe": "ROE cần xác nhận khi chu kỳ hồi phục",
-                        "margin": "Biên lợi nhuận còn chịu áp lực đầu vào",
-                        "debt_equity": "Cấu trúc vốn trong vùng an toàn"
-                    }
-                },
-                "VCB": {
-                    "pe": 14.8, "pb": 2.8, "roe": 21.2, "margin": 42.5, "debt_equity": 0.15, "eps": 6250,
-                    "status": {"pe": "good", "roe": "good", "margin": "good", "debt_equity": "good"},
-                    "notes": {
-                        "pe": "Định giá hợp lý cho ngân hàng đầu ngành",
-                        "roe": "Hiệu quả sinh lời thuộc nhóm dẫn đầu",
-                        "margin": "NIM ổn định với chất lượng tài sản tốt",
-                        "debt_equity": "Đòn bẩy thấp, bộ đệm rủi ro tốt"
-                    }
-                }
-            }
-            default_ratio = {
-                "pe": 15.0, "pb": 1.5, "roe": 15.0, "margin": 15.0, "debt_equity": 0.5, "eps": 2000,
-                "status": {"pe": "neutral", "roe": "neutral", "margin": "neutral", "debt_equity": "good"},
-                "notes": {
-                    "pe": "Đang cập nhật theo ngành",
-                    "roe": "Đang cập nhật theo chu kỳ",
-                    "margin": "Đang cập nhật biên lợi nhuận",
-                    "debt_equity": "Đang cập nhật cơ cấu vốn"
-                }
-            }
-            return ratios.get(ticker, default_ratio)
+            return get_live_ratios(ticker)
 
         @self.app.get("/api/market/scanner")
         async def get_market_scanner():
@@ -388,30 +317,6 @@ class VNStockTerminalApp:
                     "risk": item["creditSensitivity"],
                 }
                 for item in rows[:5]
-            ]
-            # Trả về danh sách cổ phiếu tiềm năng dựa trên tăng trưởng cơ bản và phân tích kỹ thuật (đầu trend tăng)
-            return [
-                {
-                    "ticker": "FPT",
-                    "reason": "Dẫn sóng ngành Công nghệ. Tăng trưởng EPS >20%. Technical: Giai đoạn 2 (Đẩy giá) xác nhận dòng tiền.",
-                    "entry_zone": "132.0 - 135.0",
-                    "target": "168.0",
-                    "risk": "Thấp"
-                },
-                {
-                    "ticker": "SSI",
-                    "reason": "Hưởng lợi KRX & Nâng hạng. Định giá P/B hợp lý. Technical: Pocket Pivot từ nền tảng chặt chẽ.",
-                    "entry_zone": "37.0 - 38.0",
-                    "target": "45.0",
-                    "risk": "Trung bình"
-                },
-                {
-                    "ticker": "DGC",
-                    "reason": "Hưởng lợi giá Phốt pho vàng phục hồi. Hàng tồn kho giá rẻ. Technical: Mới bứt phá khỏi vùng MA50.",
-                    "entry_zone": "115.0 - 118.0",
-                    "target": "140.0",
-                    "risk": "Trung bình"
-                }
             ]
 
         @self.app.get("/api/finance/valuation/dcf/{ticker}")
@@ -433,37 +338,8 @@ class VNStockTerminalApp:
                     "scenario": research["scenario"],
                     "assumptions": research["assumptions"],
                     "history": research["history"],
+                    "forecast_period_years": research.get("forecast_period_years", len(research.get("history", []))),
                 }
-            data = {
-                "FPT": {
-                    "current_price": 135200, "intrinsic_value": 168000, "upside": 24.3,
-                    "wacc": 10.2, "growth_rate": 20.0, "terminal_growth": 3.0,
-                    "fcf_projections": [6450, 7850, 9500, 11400, 13700],
-                    "assumptions": ["Doanh thu Công nghệ tăng trưởng >25%/năm", "Lợi nhuận AI Factory từ cuối 2025", "Biên lợi nhuận gộp ~40%"],
-                    "history": [
-                        {"year": "2021", "revenue": 35657, "profit": 4337, "margin": 12.2},
-                        {"year": "2022", "revenue": 44010, "profit": 5310, "margin": 12.1},
-                        {"year": "2023", "revenue": 52618, "profit": 6470, "margin": 12.3},
-                        {"year": "2024", "revenue": 62500, "profit": 7800, "margin": 12.5},
-                        {"year": "2025E", "revenue": 76000, "profit": 9800, "margin": 12.9}
-                    ]
-                },
-                "HPG": {
-                    "current_price": 28500, "intrinsic_value": 38500, "upside": 35.1,
-                    "wacc": 10.8, "growth_rate": 15.0, "terminal_growth": 2.0,
-                    "fcf_projections": [4500, 5200, 12500, 15800, 18500],
-                    "assumptions": ["Dung Quất 2 chạy thử Quý 1/2025", "Sản lượng tăng 60%", "Giá thép HRC ổn định"],
-                    "history": [
-                        {"year": "2020", "revenue": 91279, "profit": 13506, "margin": 14.8},
-                        {"year": "2021", "revenue": 150865, "profit": 34521, "margin": 22.9},
-                        {"year": "2022", "revenue": 142770, "profit": 8444, "margin": 5.9},
-                        {"year": "2023", "revenue": 120355, "profit": 6800, "margin": 5.7},
-                        {"year": "2024", "revenue": 148000, "profit": 12500, "margin": 8.4},
-                        {"year": "2025E", "revenue": 195000, "profit": 21000, "margin": 10.8}
-                    ]
-                }
-            }
-            return data.get(ticker, data["FPT"])
 
         # --- STRATEGY & ANALYSIS ---
         @self.app.get("/api/investment/strategy")
@@ -491,39 +367,9 @@ class VNStockTerminalApp:
                 "focus_list": focus_list,
                 "tactical_alerts": [],
             }
-            return {
-                "mode": "GROWTH_HUNTING",
-                "market_timing": "Cơ hội giải ngân cao - Stage 2 xác nhận",
-                "ui": {
-                    "table_title": "Bộ lọc Siêu cổ phiếu CANSLIM & SEPA",
-                    "search_mode_label": "Chế độ Tìm kiếm Chủ động"
-                },
-                "focus_list": [
-                    {"ticker": "FPT", "canslim_score": 92, "tech_status": "Stage 2 / Pocket Pivot", "vsa_signal": "Cạn cung", "entry": "134.5", "potential": "+25%", "sepa_verdict": "BUY"},
-                    {"ticker": "HPG", "canslim_score": 85, "tech_status": "Stage 1 / VCP", "vsa_signal": "Kiệt cung", "entry": "28.5", "potential": "+35%", "sepa_verdict": "WATCHLIST"},
-                    {"ticker": "SSI", "canslim_score": 88, "tech_status": "Stage 2 / Spring", "vsa_signal": "Test Cung", "entry": "37.5", "potential": "+20%", "sepa_verdict": "BUY"}
-                ],
-                "tactical_alerts": [
-                    {
-                        "title": "Xác nhận Pocket Pivot",
-                        "message": "FPT đã vượt qua vùng cung 134.5 với khối lượng lớn. Điểm mua Pocket Pivot cực chuẩn trong nền giá Stage 2.",
-                        "level": "info"
-                    },
-                    {
-                        "title": "Kiệt cung Xác nhận",
-                        "message": "HPG xuất hiện 3 phiên No Supply Bar liên tiếp. Khối lượng cạn kiệt cho thấy lực bán đã hoàn toàn biến mất.",
-                        "level": "positive"
-                    },
-                    {
-                        "title": "VCP Setup",
-                        "message": "Dòng thép và chứng khoán đang hình thành mô hình thu hẹp biên độ VCP chặt chẽ. Chờ đợi nhịp Breakout để mở vị thế.",
-                        "level": "warning"
-                    }
-                ]
-            }
-
         @self.app.get("/api/account/balance")
-        async def get_balance(): return {"balance": 1250000000}
+        async def get_balance():
+            return {"balance": int(os.getenv("PAPER_ACCOUNT_BALANCE", "0"))}
 
         @self.app.get("/api/account/positions")
         async def get_positions(db: Session = Depends(get_session)):
@@ -597,7 +443,7 @@ class VNStockTerminalApp:
                 "running": True,
                 "mode": "LIVE_SIMULATION",
                 "strategy_label": "Multi-Strategy AI Hunter",
-                "baseline_capital": 1000000000
+                "baseline_capital": int(os.getenv("PAPER_ACCOUNT_BALANCE", "0"))
             }
 
         @self.app.get("/api/analysis/trading-signals/{ticker}")
@@ -619,7 +465,7 @@ class VNStockTerminalApp:
                 ma50 = float(df["close"].rolling(50).mean().iloc[-1]) if len(df) >= 50 else ma20
                 trend_up = latest["close"] > ma20 > ma50
 
-                short_signal = "MUA" if change_pct > 0 and volume_ratio >= 1 else "GIỮ"
+                short_signal = "MUA" if change_pct > 0 and volume_ratio >= 1 else "GIá»®"
                 long_signal = "MUA" if trend_up else "THEO DÕI"
 
                 return {
@@ -647,7 +493,7 @@ class VNStockTerminalApp:
             except Exception as e:
                 logger.error(f"Failed to compute trading signals for {ticker}: {e}")
                 return {
-                    "short_term": {"label": "Short-term Momentum", "signal": "GIỮ", "strength": 50, "indicators": {}},
+                    "short_term": {"label": "Short-term Momentum", "signal": "GIá»®", "strength": 50, "indicators": {}},
                     "long_term": {"label": "Long-term Structure", "signal": "THEO DÕI", "strength": 50, "indicators": {}}
                 }
 
@@ -791,16 +637,21 @@ class VNStockTerminalApp:
         @self.app.get("/api/analysis/reports/{ticker}")
         async def get_reports(ticker: str):
             ticker = ticker.upper()
-            reports = {
-                "FPT": [
-                    {"firm": "VNDirect", "title": "FPT: Định giá lại nhờ AI & Bán dẫn", "date": "27/05/2024", "link": "https://www.vndirect.com.vn/cmsupload/beta/Bao-cao-cap-nhat-FPT_270524.pdf", "recommendation": "MUA", "target_price": 172000, "upside": 27.2},
-                    {"firm": "SHS", "title": "Cơ hội từ hệ sinh thái AI", "date": "08/04/2025", "link": "https://www.shs.com.vn/Data/Reports/2025/Bao-cao-cap-nhat-FPT_080425.pdf", "recommendation": "KHẢ QUAN", "target_price": 165500, "upside": 22.4}
-                ]
-            }
-            default_reports = [
-                {"firm": "CafeF", "title": f"Báo cáo phân tích {ticker}", "date": "2026", "link": f"https://cafef.vn/ho-so/{ticker}.chn", "recommendation": "TRUNG LẬP", "target_price": 0, "upside": 0}
-            ]
-            return reports.get(ticker, default_reports)
+            news = await self.news_aggregator.get_aggregated_news(ticker, limit=10)
+            reports = []
+            for item in news:
+                link = item.get("link") or item.get("url") or ""
+                title = item.get("title", "")
+                reports.append({
+                    "firm": item.get("source", "Public source"),
+                    "title": title,
+                    "date": item.get("time") or item.get("publishedAt") or datetime.now().strftime("%d/%m/%Y"),
+                    "link": link,
+                    "recommendation": item.get("category", "NEWS"),
+                    "target_price": 0,
+                    "upside": 0,
+                })
+            return reports
 
         @self.app.get("/api/analysis/prospects/{ticker}")
         async def get_prospects(ticker: str):
@@ -821,6 +672,9 @@ class VNStockTerminalApp:
                     "holding_period": research["holding_period"],
                     "scores": research["scores"],
                     "executive_summary": research["executive_summary"],
+                    "ratio_notes": research.get("ratio_notes", {}),
+                    "forecast_period_years": research.get("forecast_period_years", 0),
+                    "final_opinion": research.get("final_opinion", ""),
                     "growth_pillars": [
                         {"title": item["title"], "content": item["detail"]}
                         for item in research["catalysts"]
@@ -838,124 +692,7 @@ class VNStockTerminalApp:
                     "updated_at": datetime.now().strftime("%d/%m/%Y"),
                     "research_id": f"{ticker}-{datetime.now().year}-RESEARCH",
                 }
-            
-            # Giả lập dữ liệu Consensus & Target Price chuyên nghiệp
-            # Trong thực tế, dữ liệu này sẽ được cào hoặc tính toán từ các báo cáo CTCK
-            catalysts = {
-                "FPT": {
-                    "company_name": "Công ty Cổ phần FPT",
-                    "exchange": "HOSE",
-                    "industry": "Công nghệ thông tin",
-                    "health_score": 92,
-                    "recommendation": "MUA",
-                    "target_price": 168000,
-                    "upside": 24.3,
-                    "risk_level": "Thấp",
-                    "confidence_score": 85,
-                    "holding_period": "12 Tháng",
-                    "scores": {
-                        "fundamental": 95,
-                        "technical": 82,
-                        "momentum": 88,
-                        "risk": 90
-                    },
-                    "executive_summary": [
-                        "Dẫn đầu làn sóng AI và Bán dẫn tại Việt Nam thông qua hợp tác chiến lược với NVIDIA.",
-                        "Doanh thu chuyển đổi số duy trì đà tăng trưởng mạnh mẽ trên 30% tại thị trường Nhật Bản và Mỹ.",
-                        "Biên lợi nhuận cải thiện nhờ tối ưu hóa chi phí và tăng tỷ trọng mảng dịch vụ phần mềm.",
-                        "Nền tảng tài chính cực kỳ lành mạnh với lượng tiền mặt lớn và nợ vay thấp.",
-                        "Catalyst chính: Khai trương AI Factory vào Q3/2026 và các hợp đồng tỷ đô mới."
-                    ],
-                    "growth_pillars": [
-                        {"title": "Bán dẫn & AI", "content": "Xây dựng hệ sinh thái AI toàn diện từ hạ tầng đến ứng dụng."},
-                        {"title": "Thị trường Toàn cầu", "content": "Mở rộng dấu ấn tại thị trường EU và Singapore."},
-                        {"title": "Giáo dục FPT", "content": "Tăng trưởng số lượng người học đảm bảo nguồn nhân lực dài hạn."}
-                    ],
-                    "strategic_catalysts": ["AI Factory 2026", "Nâng hạng thị trường", "Cổ tức tiền mặt"],
-                    "risk_assessment": [
-                        {"title": "Tỷ giá JPY/VND", "impact": "Medium", "content": "Biến động tỷ giá ảnh hưởng doanh thu từ thị trường Nhật."},
-                        {"title": "Nhân lực IT", "impact": "High", "content": "Cạnh tranh gay gắt về nguồn cung nhân sự chất lượng cao."}
-                    ],
-                    "consensus": {
-                        "buy": 12, "hold": 2, "sell": 0,
-                        "avg_target": 165500,
-                        "max_target": 180000,
-                        "min_target": 155000
-                    },
-                    "updated_at": "27/05/2024",
-                    "research_id": "FPT-2026-AUTO"
-                },
-                "HPG": {
-                    "company_name": "Tập đoàn Hòa Phát",
-                    "exchange": "HOSE",
-                    "industry": "Thép & Vật liệu xây dựng",
-                    "health_score": 88,
-                    "recommendation": "KHẢ QUAN",
-                    "target_price": 38500,
-                    "upside": 35.1,
-                    "risk_level": "Trung bình",
-                    "confidence_score": 78,
-                    "holding_period": "6-12 Tháng",
-                    "scores": {"fundamental": 85, "technical": 75, "momentum": 70, "risk": 80},
-                    "executive_summary": [
-                        "Dự án Dung Quất 2 là động lực tăng trưởng chính trong giai đoạn 2025-2027.",
-                        "Chi phí sản xuất tối ưu nhất khu vực nhờ quy trình khép kín hiện đại.",
-                        "Hưởng lợi từ chu kỳ phục hồi của thị trường Bất động sản và Đầu tư công.",
-                        "Rủi ro chính đến từ biến động giá nguyên liệu đầu vào và nhu cầu thép thế giới."
-                    ],
-                    "growth_pillars": [
-                        {"title": "Dung Quất 2", "content": "Tăng 60% công suất HRC khi đi vào hoạt động."},
-                        {"title": "Thép Xanh", "content": "Đáp ứng tiêu chuẩn CBAM để xuất khẩu vào EU."},
-                        {"title": "Container", "content": "Tối ưu hóa hệ sinh thái sản xuất thép."}
-                    ],
-                    "strategic_catalysts": ["Vận hành DQ2", "Giá HRC phục hồi", "Lãi suất giảm"],
-                    "risk_assessment": [
-                        {"title": "Giá Quặng sắt", "impact": "High", "content": "Nguyên liệu chiếm tỷ trọng lớn trong giá thành."},
-                        {"title": "BĐS đóng băng", "impact": "Medium", "content": "Nhu cầu tiêu thụ thép xây dựng nội địa giảm."}
-                    ],
-                    "consensus": {
-                        "buy": 15, "hold": 4, "sell": 1,
-                        "avg_target": 36800,
-                        "max_target": 42000,
-                        "min_target": 29500
-                    },
-                    "updated_at": "08/04/2025",
-                    "research_id": "HPG-2026-AUTO"
-                }
-            }
-            
-            # Default response
-            default_data = {
-                "company_name": f"Doanh nghiệp {ticker}",
-                "exchange": "HOSE",
-                "industry": "Đang cập nhật",
-                "health_score": 75,
-                "recommendation": "TRUNG LẬP",
-                "target_price": 0,
-                "upside": 0,
-                "risk_level": "Trung bình",
-                "confidence_score": 70,
-                "holding_period": "Theo dõi",
-                "scores": {"fundamental": 70, "technical": 70, "momentum": 65, "risk": 75},
-                "executive_summary": [
-                    f"Cổ phiếu {ticker} đang trong giai đoạn tích lũy và chờ đợi tín hiệu dòng tiền.",
-                    "Vận động giá tương đối ổn định so với chỉ số chung VN-Index.",
-                    "Cần quan sát thêm kết quả kinh doanh quý tới để xác nhận luận điểm tăng trưởng."
-                ],
-                "growth_pillars": [
-                    {"title": "Vị thế Ngành", "content": "Duy trì thị phần trong bối cảnh cạnh tranh."},
-                    {"title": "Tối ưu vận hành", "content": "Áp dụng công nghệ giảm chi phí quản lý."}
-                ],
-                "strategic_catalysts": ["KQKD Quý tới", "Dòng tiền ngoại"],
-                "risk_assessment": [
-                    {"title": "Kinh tế vĩ mô", "impact": "Medium", "content": "Lạm phát và lãi suất ảnh hưởng chi phí vốn."}
-                ],
-                "consensus": {"buy": 5, "hold": 3, "sell": 1, "avg_target": 0, "max_target": 0, "min_target": 0},
-                "updated_at": datetime.now().strftime("%d/%m/%Y"),
-                "research_id": f"{ticker}-AUTO"
-            }
-            
-            return catalysts.get(ticker, default_data)
+            return {}
 
     async def _heartbeat_task(self):
         msgs = ["AI Engine Online", "Scanning Patterns...", "Monitoring Liquidity..."]
@@ -975,3 +712,5 @@ if __name__ == "__main__":
         reload=True,
         reload_excludes=["venv/*", "__pycache__/*", "*.log"],
     )
+
+

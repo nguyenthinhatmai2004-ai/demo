@@ -7,3 +7,6 @@ python-dotenv
 sqlmodel
 websockets
 openai
+vnstock_chart
+squarify
+wordcloud
