@@ -40,7 +40,7 @@ import {
 } from '../utils/stockScoring';
 import { generateMacroVerdict, generateRiskWarning, generateStockThesis } from '../utils/aiVerdict';
 
-const API_BASE = 'http://127.0.0.1:8001/api';
+const API_BASE = 'http://127.0.0.1:8011/api';
 
 interface StrategicDashboardData {
   coreMacroIndicators: MacroIndicator[];

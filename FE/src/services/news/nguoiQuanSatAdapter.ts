@@ -1,6 +1,6 @@
 import type { QuantNewsItem } from '../../data/quantData';
 
-const API_BASE = 'http://127.0.0.1:8001/api';
+const API_BASE = 'http://127.0.0.1:8011/api';
 
 export const fetchNguoiQuanSatNews = async (): Promise<QuantNewsItem[]> => {
   const res = await fetch(`${API_BASE}/quant/dashboard`);

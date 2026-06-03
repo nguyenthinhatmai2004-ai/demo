@@ -3,6 +3,7 @@ import os
 import logging
 import json
 import random
+from pathlib import Path
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, Response
@@ -15,11 +16,12 @@ from vnstock import Quote
 # Import database components
 from database import create_db_and_tables, get_session, News, MacroIndicator, AITradeLog, Watchlist, StrategyScore, engine
 from scraper import NewsAggregator
-from services import StrategyEvaluator, MacroEngine, QuantTrader, TelegramService, BrokerTrader, OpenAICodexAdvisor
+from gmail_news import GmailNewsClient
+from services import StrategyEvaluator, MacroEngine, QuantTrader, TelegramService, BrokerTrader, OpenAICodexAdvisor, DnseMarketData
 from live_dashboard import get_quant_dashboard, get_strategic_dashboard, data_sources, get_research_model, build_research_pdf, get_live_ratios
 
 # Load environment variables
-load_dotenv()
+load_dotenv(dotenv_path=Path(__file__).with_name(".env"), override=True)
 
 # Logging configuration
 logging.basicConfig(
@@ -56,6 +58,7 @@ class VNStockTerminalApp:
             version="3.0.0"
         )
         self.news_aggregator = NewsAggregator()
+        self.gmail_news = GmailNewsClient()
         self._setup_middleware()
         self._setup_routes()
 
@@ -208,6 +211,22 @@ class VNStockTerminalApp:
                 return {"ticker": ticker, "price": 0.0, "change": 0.0, "volume": 0}
 
         # --- NEWS ---
+        @self.app.get("/api/news/gmail/status")
+        async def get_gmail_news_status():
+            return self.gmail_news.status()
+
+        @self.app.get("/api/news/gmail")
+        async def get_gmail_news(limit: int = 15):
+            return await self.gmail_news.fetch_news(limit=limit)
+
+        @self.app.get("/api/news/gmail/brief/{ticker}")
+        async def get_gmail_news_brief(ticker: str, limit: int = 20):
+            return await self.gmail_news.fetch_brief(ticker=ticker, limit=limit)
+
+        @self.app.get("/api/news/gmail/{ticker}")
+        async def get_gmail_news_by_ticker(ticker: str, limit: int = 15):
+            return await self.gmail_news.fetch_news(ticker=ticker, limit=limit)
+
         @self.app.get("/api/news/{ticker_or_cat}")
         async def get_news(ticker_or_cat: str):
             return await self.news_aggregator.get_aggregated_news(ticker_or_cat.upper())
@@ -439,11 +458,39 @@ class VNStockTerminalApp:
 
         @self.app.get("/api/bot/status")
         async def get_bot_status():
+            dnse_market = DnseMarketData()
             return {
                 "running": True,
                 "mode": "LIVE_SIMULATION",
                 "strategy_label": "Multi-Strategy AI Hunter",
-                "baseline_capital": int(os.getenv("PAPER_ACCOUNT_BALANCE", "0"))
+                "baseline_capital": int(os.getenv("PAPER_ACCOUNT_BALANCE", "0")),
+                "market_data_source": "DNSE" if dnse_market.configured else "vnstock fallback",
+                "real_order_execution": False,
+            }
+
+        @self.app.post("/api/bot/demo-scan")
+        async def run_demo_scan(db: Session = Depends(get_session)):
+            tickers = ["FPT", "HPG", "SSI", "VCI", "VND", "VCB", "MBB", "TCB", "ACB", "MWG", "PNJ", "MSN"]
+            trader = QuantTrader(db)
+            await trader.scan_and_trade(tickers, manager)
+            return {
+                "status": "completed",
+                "mode": "DEMO_ONLY",
+                "tickers": tickers,
+                "market_data_source": "DNSE" if DnseMarketData().configured else "vnstock fallback",
+                "real_order_execution": False,
+            }
+
+        @self.app.get("/api/market/dnse/{ticker}")
+        async def get_dnse_quote(ticker: str):
+            quote = DnseMarketData().latest_trade(ticker)
+            if quote:
+                return quote
+            return {
+                "ticker": ticker.upper(),
+                "source": "DNSE",
+                "configured": DnseMarketData().configured,
+                "error": "DNSE market data unavailable; set DNSE_API_KEY and DNSE_API_SECRET or use fallback data.",
             }
 
         @self.app.get("/api/analysis/trading-signals/{ticker}")
@@ -712,5 +759,3 @@ if __name__ == "__main__":
         reload=True,
         reload_excludes=["venv/*", "__pycache__/*", "*.log"],
     )
-
-

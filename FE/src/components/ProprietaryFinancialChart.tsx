@@ -13,6 +13,15 @@ interface ProprietaryFinancialChartProps {
 }
 
 const ProprietaryFinancialChart: React.FC<ProprietaryFinancialChartProps> = ({ ticker, history }) => {
+  const validHistory = (history || [])
+    .map((item) => ({
+      ...item,
+      revenue: Number(item.revenue) || 0,
+      profit: Number(item.profit) || 0,
+      margin: Number(item.margin) || 0,
+    }))
+    .filter((item) => item.revenue > 0 || item.profit > 0);
+
   if (!history || history.length === 0) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-black/20 rounded-3xl border border-white/5 min-h-[300px]">
@@ -24,8 +33,23 @@ const ProprietaryFinancialChart: React.FC<ProprietaryFinancialChartProps> = ({ t
     );
   }
 
-  const maxRev = Math.max(...history.map(h => h.revenue)) || 1;
-  const maxProfit = Math.max(...history.map(h => h.profit)) || 1;
+  if (validHistory.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 min-h-[300px] p-8">
+        <div className="max-w-md text-center">
+          <p className="text-[11px] font-black text-amber-300 uppercase tracking-[0.24em]">Chua co du lieu lich su</p>
+          <h3 className="mt-3 text-xl font-black text-white uppercase tracking-widest">{ticker} Financial Power Metrics</h3>
+          <p className="mt-3 text-xs text-slate-500 leading-relaxed">
+            Nguon du lieu tai chinh hien chua tra doanh thu/loi nhuan hop le cho ma nay. Bieu do se cap nhat khi backend co so lieu lich su.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const chartHistory = validHistory;
+  const maxRev = Math.max(...chartHistory.map(h => h.revenue)) || 1;
+  const maxProfit = Math.max(...chartHistory.map(h => h.profit)) || 1;
 
   return (
     <div className="w-full h-full flex flex-col gap-6 p-8 bg-gradient-to-br from-slate-900/80 to-black rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden min-h-[450px]">
@@ -50,7 +74,7 @@ const ProprietaryFinancialChart: React.FC<ProprietaryFinancialChartProps> = ({ t
 
       {/* CHART CONTENT: Pure CSS for 100% reliability */}
       <div className="flex-1 flex items-end gap-6 pt-16 pb-4 relative z-10 border-b border-white/5">
-        {history.map((h, i) => {
+        {chartHistory.map((h, i) => {
           // Scale Profit independently to make it visible but label it correctly
           // Added 5px minimum height to ensure visibility
           const revHeight = Math.max((h.revenue / maxRev) * 100, 2);

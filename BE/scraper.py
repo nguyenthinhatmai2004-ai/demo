@@ -4,6 +4,7 @@ from typing import List, Dict, Optional
 import logging
 import asyncio
 import random
+from gmail_news import GmailNewsClient
 
 logger = logging.getLogger(__name__)
 
@@ -12,11 +13,13 @@ class NewsAggregator:
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
+        self.gmail_client = GmailNewsClient()
 
     async def get_aggregated_news(self, ticker: str = "", limit: int = 20) -> List[Dict]:
         ticker = ticker.upper()
         # Chạy song song cào từ 5 nguồn để tối ưu tốc độ
         tasks = [
+            self.gmail_client.fetch_news(ticker, limit=5),
             self.scrape_cafef(ticker, limit=10),
             self.scrape_vietnambiz(ticker, limit=5),
             self.scrape_vietstock(ticker, limit=5),

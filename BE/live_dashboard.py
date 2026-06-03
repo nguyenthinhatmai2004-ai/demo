@@ -277,6 +277,18 @@ def get_live_ratios(ticker: str) -> Dict:
     margin = (_row_value(ratios, "net_margin", latest_col) or _row_value(ratios, "gross_margin", latest_col)) * 100
     debt_equity = _row_value(ratios, "debt_to_equity", latest_col) or _row_value(ratios, "debtPerEquity", latest_col)
     eps = round((quote["close"] / pe), 0) if quote and pe else 0
+    source = "vnstock Finance.ratio(source=VCI)"
+
+    if not any([pe, pb, roe, margin, debt_equity, eps]):
+        model = RESEARCH_MODELS.get(ticker, {})
+        history = model.get("history", [])
+        latest_history = history[-1] if history else {}
+        pe = float(model.get("target_pe") or 0)
+        margin = float(latest_history.get("margin") or 0)
+        eps = float(model.get("forward_eps") or 0)
+        roe = round(margin * 2, 2) if margin else 0
+        debt_equity = 0.4 if model else 0
+        source = "research_model_fallback"
 
     def status(value: float, good: float, warning: float, lower_is_better: bool = False) -> str:
         if value == 0:
@@ -299,12 +311,12 @@ def get_live_ratios(ticker: str) -> Dict:
             "debt_equity": status(debt_equity, 1, 2, lower_is_better=True),
         },
         "notes": {
-            "pe": "Vnstock/VCI latest available P/E.",
-            "roe": "Vnstock/VCI latest available ROE.",
-            "margin": "Vnstock/VCI latest available net/gross margin.",
-            "debt_equity": "Vnstock/VCI latest available debt/equity.",
+            "pe": "Latest available P/E; fallback uses research model target P/E when live provider is empty.",
+            "roe": "Latest available ROE; fallback is estimated from model margin when live provider is empty.",
+            "margin": "Latest available net/gross margin; fallback uses research model history.",
+            "debt_equity": "Latest available debt/equity; fallback uses conservative model estimate.",
         },
-        "source": "vnstock Finance.ratio(source=VCI)",
+        "source": source,
         "period": "latest",
     }
 
@@ -328,6 +340,13 @@ def get_live_financial_history(ticker: str, years: int = 6) -> List[Dict]:
             "margin": round(margin, 2),
         })
     return rows
+
+
+def _has_real_financial_history(history: List[Dict]) -> bool:
+    return any(
+        float(item.get("revenue") or 0) > 0 or float(item.get("profit") or 0) > 0
+        for item in history or []
+    )
 
     return {
         "ticker": ticker,
@@ -706,6 +725,9 @@ def get_research_model(ticker: str) -> Dict:
     meta = SYMBOL_META.get(ticker, {"company": ticker, "exchange": "HOSE", "sector": "Unknown"})
     ratios = get_live_ratios(ticker)
     history = get_live_financial_history(ticker)
+    fallback_model = RESEARCH_MODELS.get(ticker, {})
+    if not _has_real_financial_history(history):
+        history = fallback_model.get("history", [])
     current_price = quote["close"] if quote else 0
     technical_score = min(95, max(35, quote["relativeStrengthVNIndex"] if quote else 60))
     roe = float(ratios.get("roe") or 0)

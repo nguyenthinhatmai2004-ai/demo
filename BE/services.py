@@ -10,6 +10,12 @@ from sqlmodel import Session, select
 from vnstock import Vnstock, Quote, Finance
 from database import MacroIndicator, AITradeLog, StrategyScore, engine
 
+try:
+    from dnse import BoardId, DnseClient
+except Exception:
+    BoardId = None
+    DnseClient = None
+
 logger = logging.getLogger("FinancialServices")
 
 class StrategyEvaluator:
@@ -354,6 +360,53 @@ class BrokerTrader:
         logger.info(f"REAL ORDER SENT: {side} {quantity} {ticker} at {price}")
         return {"status": "SUCCESS", "order_id": random.randint(1000, 9999)}
 
+
+class DnseMarketData:
+    """DNSE market-data adapter for demo trading only."""
+
+    def __init__(self):
+        self.api_key = os.getenv("DNSE_API_KEY", "")
+        self.api_secret = os.getenv("DNSE_API_SECRET", "")
+        self.base_url = os.getenv("DNSE_BASE_URL", "https://openapi.dnse.com.vn")
+
+    @property
+    def configured(self) -> bool:
+        return bool(DnseClient and BoardId and self.api_key and self.api_secret)
+
+    @staticmethod
+    def _normalize_price(price: float) -> float:
+        return price * 1000 if price and price < 1000 else price
+
+    def latest_trade(self, ticker: str) -> Optional[Dict]:
+        if not self.configured:
+            return None
+
+        ticker = ticker.upper().strip()
+        try:
+            with DnseClient(
+                api_key=self.api_key,
+                api_secret=self.api_secret,
+                base_url=self.base_url,
+                timeout=10,
+            ) as client:
+                trades = client.market.latest_trade(ticker, BoardId.ROUND_LOT)
+            if not trades:
+                return None
+
+            trade = trades[0]
+            price = self._normalize_price(float(trade.match_price or trade.avg_price or 0))
+            return {
+                "ticker": ticker,
+                "price": price,
+                "volume": int(trade.total_volume_traded or trade.match_qtty or 0),
+                "time": trade.time,
+                "source": "DNSE",
+            }
+        except Exception as e:
+            logger.warning(f"DNSE latest trade failed for {ticker}: {e}")
+            return None
+
+
 class QuantTrader:
     """Hệ thống Trading ảo - Mục tiêu +20% Performance"""
     
@@ -390,20 +443,24 @@ class QuantTrader:
     async def scan_and_trade(self, tickers: List[str], manager=None):
         tg = TelegramService()
         vst = Vnstock()
+        dnse_market = DnseMarketData()
         for ticker in tickers:
             try:
                 stock = vst.stock(symbol=ticker, source='KBS')
                 df = stock.quote.history(length=50, resolution='1D')
                 if df is None or df.empty: continue
                 
-                price = df.iloc[-1]['close'] * 1000
+                dnse_quote = dnse_market.latest_trade(ticker)
+                price = dnse_quote["price"] if dnse_quote else df.iloc[-1]['close'] * 1000
+                latest_volume = dnse_quote["volume"] if dnse_quote and dnse_quote["volume"] else df.iloc[-1]['volume']
                 # --- CHIẾN LƯỢC TRADE ẢO ---
                 # 1. Breakout đỉnh 20 phiên (MUA)
                 recent_high = df['high'].tail(20).iloc[:-1].max() * 1000
-                if price > recent_high and df.iloc[-1]['volume'] > df['volume'].tail(20).mean() * 1.5:
-                    trade_recorded = await self._record_trade(ticker, "BUY", price, "Breakout", manager)
+                if price > recent_high and latest_volume > df['volume'].tail(20).mean() * 1.5:
+                    strategy = "DNSE Live Demo Breakout" if dnse_quote else "Vnstock Demo Breakout"
+                    trade_recorded = await self._record_trade(ticker, "BUY", price, strategy, manager)
                     if trade_recorded:
-                        await tg.send_signal(ticker, "VIRTUAL BUY", price, "Breakout Target +20%", sl=price*0.93)
+                        await tg.send_signal(ticker, "VIRTUAL BUY", price, f"{strategy} Target +20%", sl=price*0.93)
 
                 # 2. Chốt lời / Cắt lỗ tự động (BÁN)
                 # Tìm lệnh mua gần nhất chưa chốt của mã này

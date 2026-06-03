@@ -3,7 +3,7 @@ import { createChart, ColorType, CrosshairMode } from 'lightweight-charts';
 import type { ISeriesApi, IChartApi } from 'lightweight-charts';
 import axios from 'axios';
 
-const API_BASE = 'http://127.0.0.1:8001/api';
+const API_BASE = 'http://127.0.0.1:8011/api';
 
 interface EquityMatrixChartProps {
   ticker: string;

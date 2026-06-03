@@ -4,12 +4,12 @@ import {
   Activity, Zap, TrendingUp, Shield, 
   Calculator, ExternalLink, PieChart, Target, 
   Award, AlertTriangle, Clock, 
-  FileText, Globe, Download, Plus
+  FileText, Globe, Download, Plus, Mail, Inbox, RefreshCw
 } from 'lucide-react';
 import ProprietaryFinancialChart from '../components/ProprietaryFinancialChart';
 import ProprietaryTechnicalChart from '../components/ProprietaryTechnicalChart';
 
-const API_BASE = 'http://127.0.0.1:8001/api';
+const API_BASE = 'http://127.0.0.1:8011/api';
 
 const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   const [reports, setReports] = useState<any[]>([]);
@@ -19,6 +19,8 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   const [techAnalysis, setTechnicalAnalysis] = useState<any>(null);
   const [realtimeQuote, setRealtimeQuote] = useState<any>(null);
   const [marketScanner, setMarketScanner] = useState<any[]>([]);
+  const [gmailBrief, setGmailBrief] = useState<any>(null);
+  const [gmailStatus, setGmailStatus] = useState<any>(null);
   const [activeSection, setActiveSection] = useState('overview');
 
   const fetchData = async () => {
@@ -34,11 +36,25 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
 
     const ticker = activeTicker.toUpperCase();
     
-    const [reportsRes, prospectsRes, ratiosRes, valuationRes, techRes, quoteRes, scannerRes] = await Promise.all([
+    Promise.all([
+      safeGet(`${API_BASE}/news/gmail/status`, null),
+      safeGet(`${API_BASE}/news/gmail/brief/${ticker}?limit=20`, null)
+    ]).then(([gmailStatusRes, gmailBriefRes]) => {
+      setGmailStatus(gmailStatusRes);
+      setGmailBrief(gmailBriefRes);
+    });
+
+    Promise.all([
+      safeGet(`${API_BASE}/finance/ratios/${ticker}`, null),
+      safeGet(`${API_BASE}/finance/valuation/dcf/${ticker}`, null)
+    ]).then(([ratiosRes, valuationRes]) => {
+      setRatios(ratiosRes);
+      setValuation(valuationRes);
+    });
+
+    const [reportsRes, prospectsRes, techRes, quoteRes, scannerRes] = await Promise.all([
       safeGet(`${API_BASE}/analysis/reports/${ticker}`, []),
       safeGet(`${API_BASE}/analysis/prospects/${ticker}`, null),
-      safeGet(`${API_BASE}/finance/ratios/${ticker}`, null),
-      safeGet(`${API_BASE}/finance/valuation/dcf/${ticker}`, null),
       safeGet(`${API_BASE}/analysis/technical/${ticker}`, null),
       safeGet(`${API_BASE}/market/quote/${ticker}`, null),
       safeGet(`${API_BASE}/market/scanner`, [])
@@ -46,8 +62,6 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
 
     setReports(reportsRes);
     setProspects(prospectsRes);
-    setRatios(ratiosRes);
-    setValuation(valuationRes);
     setTechnicalAnalysis(techRes);
     setRealtimeQuote(quoteRes);
     setMarketScanner(scannerRes);
@@ -104,6 +118,41 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   const ratioNotes = prospects?.ratio_notes || {};
   const finalOpinion = prospects?.final_opinion || '';
   const forecastPeriodYears = valuation?.forecast_period_years || prospects?.forecast_period_years || valuation?.history?.length || 0;
+  const gmailConfigured = Boolean(gmailStatus?.configured);
+  const gmailGroups = gmailBrief?.groups || {};
+  const gmailGroupList = [
+    { key: 'tickerSpecific', title: `Tin theo ma ${activeTicker.toUpperCase()}`, empty: `Hom nay chua co tin rieng cho ${activeTicker.toUpperCase()} trong email bot.`, accent: 'cyan' },
+    { key: 'macro', title: 'Vi mo', empty: 'Chua co tin vi mo trong email hom nay.', accent: 'emerald' },
+    { key: 'international', title: 'Quoc te', empty: 'Chua co tin quoc te trong email hom nay.', accent: 'blue' },
+    { key: 'corporate', title: 'Doanh nghiep / thi truong', empty: 'Chua co tin doanh nghiep phu hop trong email hom nay.', accent: 'amber' },
+  ];
+  const hasGmailBriefItems = (gmailBrief?.items || []).length > 0;
+  const formatMailDate = (value: string) => {
+    if (!value) return 'N/A';
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString('vi-VN');
+  };
+
+  const renderBriefItem = (item: any) => (
+    <article key={item.id} className="rounded-xl border border-slate-800 bg-black/25 p-4 hover:border-cyan-500/30 transition-colors">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{item.source || 'Gmail'} / {formatMailDate(item.publishedAt || item.time)}</p>
+          <h4 className="mt-2 text-sm font-black text-white leading-snug">{item.title}</h4>
+        </div>
+        {item.link && (
+          <a href={item.link} target="_blank" rel="noreferrer" className="h-8 w-8 shrink-0 rounded-lg border border-slate-700 text-cyan-300 hover:bg-cyan-500/10 flex items-center justify-center" title="Open source link">
+            <ExternalLink size={14} />
+          </a>
+        )}
+      </div>
+      <p className="mt-3 text-xs text-slate-400 leading-relaxed line-clamp-3">{item.summary || 'Khong co tom tat.'}</p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {item.ticker && <span className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-[9px] font-black uppercase text-slate-400">{item.ticker}</span>}
+        {item.sentiment && <span className="rounded border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-[9px] font-black uppercase text-cyan-300">{item.sentiment}</span>}
+      </div>
+    </article>
+  );
 
   return (
     <div className="flex gap-8 max-w-[1600px] mx-auto relative">
@@ -274,6 +323,85 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                  </div>
               </div>
            </div>
+
+           <section className="bg-slate-950/80 border border-cyan-500/15 rounded-3xl overflow-hidden shadow-2xl">
+              <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-slate-800 px-6 py-5">
+                 <div className="flex items-center gap-4">
+                    <div className="h-11 w-11 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-300">
+                       <Mail size={19} />
+                    </div>
+                    <div>
+                       <p className="text-[10px] font-black text-cyan-300 uppercase tracking-[0.24em]">Daily Market Brief</p>
+                       <h3 className="text-sm font-black text-white uppercase tracking-widest">{activeTicker} + Macro / Global / Corporate</h3>
+                    </div>
+                 </div>
+                 <div className="flex items-center gap-3">
+                    <span className={`px-3 py-1 rounded border text-[9px] font-black uppercase ${gmailConfigured ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25' : 'bg-amber-500/10 text-amber-300 border-amber-500/25'}`}>
+                       {gmailConfigured ? 'Connected' : 'Setup required'}
+                    </span>
+                    <button onClick={fetchData} title="Refresh Gmail news" className="h-9 w-9 rounded-lg border border-slate-700 bg-slate-900 text-slate-300 hover:border-cyan-500/40 hover:text-cyan-300 flex items-center justify-center">
+                       <RefreshCw size={15} />
+                    </button>
+                 </div>
+              </div>
+
+              {!gmailConfigured ? (
+                 <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-5 px-6 py-5">
+                    <div className="flex items-start gap-4">
+                       <Inbox size={18} className="text-amber-300 mt-0.5" />
+                       <div>
+                          <p className="text-sm font-bold text-slate-200">Chua cau hinh Gmail trong backend.</p>
+                          <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                             Dien `GMAIL_ADDRESS` va `GMAIL_APP_PASSWORD` trong `BE/.env`, bat IMAP trong Gmail, roi restart backend. Query hien tai: {gmailStatus?.query || 'longnt.1608 newer_than:30d'}.
+                          </p>
+                       </div>
+                    </div>
+                    <div className="rounded-xl border border-slate-800 bg-black/30 px-4 py-3 text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                       Gmail query: longnt.1608
+                    </div>
+                 </div>
+              ) : !hasGmailBriefItems ? (
+                 <div className="px-6 py-6 flex items-center gap-3 text-slate-500">
+                    <Inbox size={18} />
+                    <span className="text-xs font-bold">Khong co tin trong ngay hien tai phu hop voi {activeTicker} va cac nhom vi mo/quoc te/doanh nghiep.</span>
+                 </div>
+              ) : (
+                 <div className="p-5 space-y-5">
+                    <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                       <span>Ngay: {gmailBrief?.date || 'today'}</span>
+                       <span className="h-1 w-1 rounded-full bg-slate-700"></span>
+                       <span>Nguon email: {gmailBrief?.sourceEmailCount || 0}</span>
+                       {!gmailBrief?.hasTickerSpecific && (
+                          <>
+                            <span className="h-1 w-1 rounded-full bg-slate-700"></span>
+                            <span className="text-amber-300">Chua co tin rieng cho {activeTicker.toUpperCase()}</span>
+                          </>
+                       )}
+                    </div>
+                    {gmailGroupList.map((group) => {
+                       const items = gmailGroups[group.key] || [];
+                       return (
+                          <section key={group.key} className="rounded-2xl border border-slate-800/80 bg-slate-950/50 overflow-hidden">
+                             <div className="flex items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
+                                <h4 className="text-[11px] font-black text-white uppercase tracking-widest">{group.title}</h4>
+                                <span className="rounded border border-slate-700 bg-black/30 px-2 py-1 text-[9px] font-black uppercase text-slate-500">{items.length} tin</span>
+                             </div>
+                             {items.length === 0 ? (
+                                <div className="px-4 py-4 flex items-center gap-3 text-slate-500">
+                                   <Inbox size={16} />
+                                   <span className="text-xs font-bold">{group.empty}</span>
+                                </div>
+                             ) : (
+                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 p-4">
+                                   {items.map(renderBriefItem)}
+                                </div>
+                             )}
+                          </section>
+                       );
+                    })}
+                 </div>
+              )}
+           </section>
         </header>
 
         {/* SECTION 2: EXECUTIVE SUMMARY */}
@@ -327,17 +455,14 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               <div className="lg:col-span-8 bg-slate-950 border border-slate-800 rounded-3xl p-2 h-[500px] shadow-2xl relative">
                  <ProprietaryFinancialChart ticker={activeTicker} history={valuation?.history || []} />
-                 <div className="absolute top-6 left-6 pointer-events-none">
-                    <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">Proprietary Revenue/Profit Model</span>
-                 </div>
               </div>
 
               <div className="lg:col-span-4 flex flex-col gap-4">
                  {[
-                    { label: 'P/E Ratio', value: ratios?.pe, sub: ratioNotes.pe || ratios?.notes?.pe || '', status: ratios?.status?.pe },
-                    { label: 'ROE (%)', value: ratios?.roe, sub: ratioNotes.roe || ratios?.notes?.roe || '', status: ratios?.status?.roe },
-                    { label: 'Net Margin (%)', value: ratios?.margin, sub: ratioNotes.margin || ratios?.notes?.margin || '', status: ratios?.status?.margin },
-                    { label: 'D/E Ratio', value: ratios?.debt_equity, sub: ratioNotes.debt_equity || ratios?.notes?.debt_equity || '', status: ratios?.status?.debt_equity },
+                    { label: 'P/E Ratio', value: ratios?.pe, sub: ratios?.notes?.pe || ratioNotes.pe || '', status: ratios?.status?.pe },
+                    { label: 'ROE (%)', value: ratios?.roe, sub: ratios?.notes?.roe || ratioNotes.roe || '', status: ratios?.status?.roe },
+                    { label: 'Net Margin (%)', value: ratios?.margin, sub: ratios?.notes?.margin || ratioNotes.margin || '', status: ratios?.status?.margin },
+                    { label: 'D/E Ratio', value: ratios?.debt_equity, sub: ratios?.notes?.debt_equity || ratioNotes.debt_equity || '', status: ratios?.status?.debt_equity },
                  ].map(r => {
                     let colorClass = 'text-slate-400 group-hover:text-blue-400';
                     let borderClass = 'hover:border-blue-500/30';
@@ -350,6 +475,10 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                        borderClass = 'border-rose-500/20 hover:border-rose-500/50 bg-rose-500/5';
                     }
 
+                    const displayValue = typeof r.value === 'number' && Number.isFinite(r.value)
+                       ? r.value.toLocaleString('vi-VN', { maximumFractionDigits: 2 })
+                       : 'N/A';
+
                     return (
                        <div key={r.label} className={`bg-slate-900/40 border border-slate-800 rounded-2xl p-6 transition-all group ${borderClass}`}>
                           <div className="flex justify-between items-start">
@@ -357,7 +486,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{r.label}</span>
                                 <span className="text-[8px] font-bold text-slate-700 uppercase group-hover:text-slate-500">{r.sub}</span>
                              </div>
-                             <span className={`text-2xl font-black tabular-nums transition-colors ${colorClass}`}>{r.value}</span>
+                             <span className={`text-2xl font-black tabular-nums transition-colors ${colorClass}`}>{displayValue}</span>
                           </div>
                        </div>
                     );
