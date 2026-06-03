@@ -320,6 +320,132 @@ class OpenAICodexAdvisor:
                 "answer": f"AI request failed: {e}",
             }
 
+    async def equity_report(self, ticker: str, context: Dict) -> Dict:
+        fallback = self._fallback_equity_report(ticker, context)
+        if not self.client:
+            return {
+                **fallback,
+                "configured": False,
+                "model": self.model,
+                "ai_note": "OpenAI is not configured; using deterministic research model fallback.",
+            }
+
+        instructions = (
+            "You are a senior Vietnam equity research analyst. "
+            "Write in Vietnamese. Produce a professional institutional equity report from the supplied JSON only. "
+            "Do not invent figures. Separate facts, estimates, assumptions, and risks. "
+            "Do not promise returns. Use concise analyst language. "
+            "Return valid JSON only, with this schema: "
+            "{ticker, company, recommendation, target_price, investment_view, summary_bullets, business_quality, "
+            "financial_analysis, valuation_analysis, news_readthrough, catalysts, risks, monitoring_plan, action_plan, disclaimer}. "
+            "summary_bullets, catalysts, risks, monitoring_plan, action_plan must be arrays of strings."
+        )
+        input_text = json.dumps({"ticker": ticker.upper(), "context": context}, ensure_ascii=False)
+        try:
+            response = await asyncio.to_thread(
+                self.client.responses.create,
+                model=self.model,
+                instructions=instructions,
+                input=input_text,
+            )
+            text = response.output_text.strip()
+            parsed = json.loads(text)
+            return {
+                **fallback,
+                **parsed,
+                "configured": True,
+                "model": self.model,
+                "generated_at": datetime.utcnow().isoformat(),
+                "ai_note": "Generated with OpenAI from supplied terminal data.",
+            }
+        except Exception as e:
+            logger.error(f"OpenAI Equity Report error: {e}")
+            return {
+                **fallback,
+                "configured": True,
+                "model": self.model,
+                "ai_note": f"AI request failed; using deterministic fallback. Error: {e}",
+            }
+
+    def _fallback_equity_report(self, ticker: str, context: Dict) -> Dict:
+        research = context.get("research") or {}
+        ratios = context.get("ratios") or {}
+        valuation = context.get("valuation") or {}
+        technical = context.get("technical") or {}
+        gmail = context.get("daily_brief") or {}
+        groups = gmail.get("groups") or {}
+        ticker_news = groups.get("tickerSpecific") or []
+        macro_news = groups.get("macro") or []
+        international_news = groups.get("international") or []
+        corporate_news = groups.get("corporate") or []
+        target_price = research.get("target_price") or valuation.get("intrinsic_value") or 0
+        recommendation = research.get("recommendation") or "THEO DOI"
+        company = research.get("company_name") or ticker.upper()
+        upside = research.get("upside") or valuation.get("upside") or 0
+        summary = research.get("executive_summary") or []
+        final_opinion = research.get("final_opinion") or ""
+
+        return {
+            "ticker": ticker.upper(),
+            "company": company,
+            "recommendation": recommendation,
+            "target_price": target_price,
+            "investment_view": final_opinion or f"{ticker.upper()} dang co khuyen nghi {recommendation} voi upside {upside}%.",
+            "summary_bullets": summary[:4] or [
+                f"{ticker.upper()} duoc tong hop tu du lieu gia, dinh gia, tai chinh va tin tuc trong terminal.",
+                "Can kiem tra lai voi bao cao tai chinh va cong bo doanh nghiep moi nhat truoc khi ra quyet dinh.",
+            ],
+            "business_quality": (
+                f"Nganh: {research.get('industry', 'N/A')}. Diem fundamental: "
+                f"{(research.get('scores') or {}).get('fundamental', 'N/A')}/100."
+            ),
+            "financial_analysis": (
+                f"P/E {ratios.get('pe', 'N/A')}x, ROE {ratios.get('roe', 'N/A')}%, "
+                f"bien loi nhuan {ratios.get('margin', 'N/A')}%, D/E {ratios.get('debt_equity', 'N/A')}."
+            ),
+            "valuation_analysis": (
+                f"Gia muc tieu {target_price:,} VND/cp, weighted target "
+                f"{research.get('weighted_target') or valuation.get('weighted_target') or 0:,} VND/cp, upside {upside}%."
+            ),
+            "news_readthrough": self._brief_news_readthrough(ticker_news, macro_news, international_news, corporate_news),
+            "catalysts": [
+                f"{item.get('title')}: {item.get('detail')}"
+                for item in (research.get("strategic_catalysts") or research.get("catalysts") or [])[:4]
+            ] or ["Theo doi ky cong bo KQKD, dong tien va thanh khoan gia co phieu."],
+            "risks": [
+                f"{item.get('title')}: {item.get('content')}"
+                for item in (research.get("risk_assessment") or research.get("risks") or [])[:4]
+            ] or ["Rui ro du lieu, bien dong thi truong va sai lech gia dinh dinh gia."],
+            "monitoring_plan": [
+                "Cap nhat KQKD quy moi nhat va bien loi nhuan.",
+                "Theo doi thay doi khuyen nghi/target price tu cac cong ty chung khoan.",
+                "Theo doi tin rieng theo ma va tin vi mo/quoc te co tac dong den dinh gia.",
+            ],
+            "action_plan": [
+                f"Neu dang nam giu: doi chieu gia hien tai voi target {target_price:,} va cac nguong ky thuat.",
+                "Neu mua moi: chi giai ngan khi co xac nhan ve thanh khoan, xu huong va margin of safety.",
+                "Dat nguong invalidation/stop-loss theo ho tro ky thuat va quy mo vi the phu hop.",
+            ],
+            "disclaimer": "Thong tin chi phuc vu phan tich, khong phai khuyen nghi dau tu ca nhan hoa.",
+            "configured": False,
+            "model": self.model,
+            "generated_at": datetime.utcnow().isoformat(),
+        }
+
+    def _brief_news_readthrough(self, ticker_news: List[Dict], macro_news: List[Dict], international_news: List[Dict], corporate_news: List[Dict]) -> str:
+        parts = []
+        if ticker_news:
+            parts.append("Tin rieng theo ma: " + "; ".join(item.get("title", "") for item in ticker_news[:2]))
+        else:
+            parts.append("Chua co tin rieng theo ma trong ban tin Gmail hom nay.")
+        if macro_news:
+            parts.append("Vi mo: " + "; ".join(item.get("title", "") for item in macro_news[:2]))
+        if international_news:
+            parts.append("Quoc te: " + "; ".join(item.get("title", "") for item in international_news[:2]))
+        if corporate_news:
+            parts.append("Doanh nghiep/thi truong: " + "; ".join(item.get("title", "") for item in corporate_news[:2]))
+        return " ".join(parts)
+
 class TelegramService:
     def __init__(self):
         self.token = os.getenv("TELEGRAM_BOT_TOKEN")

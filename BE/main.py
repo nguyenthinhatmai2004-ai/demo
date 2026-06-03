@@ -313,6 +313,72 @@ class VNStockTerminalApp:
             advisor = OpenAICodexAdvisor()
             return await advisor.ask(prompt=prompt, ticker=ticker, context=market_context)
 
+        @self.app.get("/api/ai/equity-report/{ticker}")
+        async def get_ai_equity_report(ticker: str, db: Session = Depends(get_session)):
+            ticker = ticker.upper().strip()
+            if not ticker:
+                raise HTTPException(status_code=400, detail="Ticker is required")
+
+            research = get_research_model(ticker)
+            ratios = get_live_ratios(ticker)
+            valuation = {
+                "current_price": research.get("current_price"),
+                "intrinsic_value": research.get("target_price"),
+                "weighted_target": research.get("weighted_target"),
+                "upside": research.get("upside"),
+                "wacc": research.get("wacc"),
+                "growth_rate": research.get("growth_rate"),
+                "terminal_growth": research.get("terminal_growth"),
+                "target_pe": research.get("target_pe"),
+                "forward_eps": research.get("forward_eps"),
+                "valuation_bridge": research.get("valuation_bridge", []),
+                "scenario": research.get("scenario", {}),
+                "assumptions": research.get("assumptions", []),
+                "history": research.get("history", []),
+            }
+
+            daily_brief = await self.gmail_news.fetch_brief(ticker=ticker, limit=20)
+            news = await self.news_aggregator.get_aggregated_news(ticker, limit=12)
+
+            technical_context = {}
+            try:
+                quote = Quote(symbol=ticker, source='KBS')
+                df = quote.history(length='6M', interval='1D')
+                if df is not None and not df.empty:
+                    df = df.sort_values(by='time', ascending=True)
+                    close = float(df.iloc[-1]["close"])
+                    prev_close = float(df.iloc[-2]["close"]) if len(df) >= 2 else close
+                    technical_context = {
+                        "last_close": close,
+                        "change_pct": round(((close - prev_close) / prev_close) * 100, 2) if prev_close else 0,
+                        "ma20": round(float(df["close"].tail(20).mean()), 2),
+                        "ma50": round(float(df["close"].tail(50).mean()), 2) if len(df) >= 50 else None,
+                        "high_6m": round(float(df["high"].max()), 2),
+                        "low_6m": round(float(df["low"].min()), 2),
+                        "volume_ratio_20d": round(float(df.iloc[-1]["volume"] / max(1, df["volume"].tail(20).mean())), 2),
+                    }
+            except Exception as e:
+                logger.warning(f"Equity report technical context failed for {ticker}: {e}")
+
+            try:
+                macro_context = MacroEngine(db).get_market_phase()
+            except Exception as e:
+                logger.warning(f"Equity report macro context failed: {e}")
+                macro_context = {}
+
+            context = {
+                "research": research,
+                "ratios": ratios,
+                "valuation": valuation,
+                "technical": technical_context,
+                "macro": macro_context,
+                "daily_brief": daily_brief,
+                "news": news[:12],
+                "data_sources": data_sources(),
+            }
+            advisor = OpenAICodexAdvisor()
+            return await advisor.equity_report(ticker=ticker, context=context)
+
         # --- FINANCE & VALUATION ---
         @self.app.get("/api/finance/ratios/{ticker}")
         async def get_ratios(ticker: str):

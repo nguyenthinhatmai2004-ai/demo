@@ -21,6 +21,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   const [marketScanner, setMarketScanner] = useState<any[]>([]);
   const [gmailBrief, setGmailBrief] = useState<any>(null);
   const [gmailStatus, setGmailStatus] = useState<any>(null);
+  const [aiEquityReport, setAiEquityReport] = useState<any>(null);
   const [activeSection, setActiveSection] = useState('overview');
 
   const fetchData = async () => {
@@ -50,6 +51,10 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
     ]).then(([ratiosRes, valuationRes]) => {
       setRatios(ratiosRes);
       setValuation(valuationRes);
+    });
+
+    safeGet(`${API_BASE}/ai/equity-report/${ticker}`, null).then((reportRes) => {
+      setAiEquityReport(reportRes);
     });
 
     const [reportsRes, prospectsRes, techRes, quoteRes, scannerRes] = await Promise.all([
@@ -127,6 +132,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
     { key: 'corporate', title: 'Doanh nghiep / thi truong', empty: 'Chua co tin doanh nghiep phu hop trong email hom nay.', accent: 'amber' },
   ];
   const hasGmailBriefItems = (gmailBrief?.items || []).length > 0;
+  const aiList = (items: any) => Array.isArray(items) ? items.filter(Boolean) : [];
   const formatMailDate = (value: string) => {
     if (!value) return 'N/A';
     const parsed = new Date(value);
@@ -152,6 +158,17 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
         {item.sentiment && <span className="rounded border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-[9px] font-black uppercase text-cyan-300">{item.sentiment}</span>}
       </div>
     </article>
+  );
+
+  const renderAiList = (items: any) => (
+    <div className="flex flex-col gap-3">
+      {aiList(items).map((item: string, index: number) => (
+        <div key={`${item}-${index}`} className="flex gap-3">
+          <span className="mt-1 h-5 w-5 shrink-0 rounded-full border border-blue-500/30 bg-blue-500/10 text-[9px] font-black text-blue-300 flex items-center justify-center">{index + 1}</span>
+          <p className="text-xs text-slate-300 leading-relaxed">{item}</p>
+        </div>
+      ))}
+    </div>
   );
 
   return (
@@ -399,6 +416,95 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                           </section>
                        );
                     })}
+                 </div>
+              )}
+           </section>
+
+           <section className="bg-slate-950/80 border border-blue-500/15 rounded-3xl overflow-hidden shadow-2xl">
+              <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-slate-800 px-6 py-5">
+                 <div className="flex items-center gap-4">
+                    <div className="h-11 w-11 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-300">
+                       <FileText size={19} />
+                    </div>
+                    <div>
+                       <p className="text-[10px] font-black text-blue-300 uppercase tracking-[0.24em]">AI Equity Report</p>
+                       <h3 className="text-sm font-black text-white uppercase tracking-widest">{activeTicker} Institutional Research Draft</h3>
+                    </div>
+                 </div>
+                 <div className="flex items-center gap-3">
+                    <span className={`px-3 py-1 rounded border text-[9px] font-black uppercase ${aiEquityReport?.configured ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25' : 'bg-blue-500/10 text-blue-300 border-blue-500/25'}`}>
+                       {aiEquityReport?.configured ? `AI ${aiEquityReport?.model || ''}` : 'Model fallback'}
+                    </span>
+                    <button onClick={fetchData} title="Refresh AI equity report" className="h-9 w-9 rounded-lg border border-slate-700 bg-slate-900 text-slate-300 hover:border-blue-500/40 hover:text-blue-300 flex items-center justify-center">
+                       <RefreshCw size={15} />
+                    </button>
+                 </div>
+              </div>
+
+              {!aiEquityReport ? (
+                 <div className="px-6 py-6 flex items-center gap-3 text-slate-500">
+                    <div className="h-5 w-5 border-2 border-blue-500/20 border-t-blue-400 rounded-full animate-spin"></div>
+                    <span className="text-xs font-bold">Dang tao equity report cho {activeTicker}...</span>
+                 </div>
+              ) : (
+                 <div className="p-6 grid grid-cols-1 xl:grid-cols-12 gap-5">
+                    <div className="xl:col-span-5 rounded-2xl border border-slate-800 bg-black/25 p-5">
+                       <div className="flex items-start justify-between gap-4">
+                          <div>
+                             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{aiEquityReport.company || activeTicker}</p>
+                             <h4 className="mt-2 text-3xl font-black text-white uppercase tracking-tight">{aiEquityReport.recommendation || 'THEO DOI'}</h4>
+                          </div>
+                          <div className="text-right">
+                             <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Target</p>
+                             <p className="text-xl font-black text-emerald-300 tabular-nums">{(aiEquityReport.target_price || 0).toLocaleString()} VND</p>
+                          </div>
+                       </div>
+                       <p className="mt-5 text-sm text-slate-300 leading-relaxed italic">"{aiEquityReport.investment_view}"</p>
+                       {aiEquityReport.ai_note && <p className="mt-4 text-[10px] font-bold text-slate-600 uppercase tracking-widest">{aiEquityReport.ai_note}</p>}
+                    </div>
+
+                    <div className="xl:col-span-7 rounded-2xl border border-slate-800 bg-black/20 p-5">
+                       <p className="text-[10px] font-black text-blue-300 uppercase tracking-widest mb-4">Investment Summary</p>
+                       {renderAiList(aiEquityReport.summary_bullets)}
+                    </div>
+
+                    <div className="xl:col-span-4 rounded-2xl border border-slate-800 bg-black/20 p-5">
+                       <p className="text-[10px] font-black text-emerald-300 uppercase tracking-widest mb-3">Business Quality</p>
+                       <p className="text-xs text-slate-300 leading-relaxed">{aiEquityReport.business_quality}</p>
+                    </div>
+                    <div className="xl:col-span-4 rounded-2xl border border-slate-800 bg-black/20 p-5">
+                       <p className="text-[10px] font-black text-cyan-300 uppercase tracking-widest mb-3">Financials</p>
+                       <p className="text-xs text-slate-300 leading-relaxed">{aiEquityReport.financial_analysis}</p>
+                    </div>
+                    <div className="xl:col-span-4 rounded-2xl border border-slate-800 bg-black/20 p-5">
+                       <p className="text-[10px] font-black text-orange-300 uppercase tracking-widest mb-3">Valuation</p>
+                       <p className="text-xs text-slate-300 leading-relaxed">{aiEquityReport.valuation_analysis}</p>
+                    </div>
+
+                    <div className="xl:col-span-12 rounded-2xl border border-slate-800 bg-black/20 p-5">
+                       <p className="text-[10px] font-black text-purple-300 uppercase tracking-widest mb-3">News Read-through</p>
+                       <p className="text-xs text-slate-300 leading-relaxed">{aiEquityReport.news_readthrough}</p>
+                    </div>
+
+                    <div className="xl:col-span-6 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.03] p-5">
+                       <p className="text-[10px] font-black text-emerald-300 uppercase tracking-widest mb-4">Catalysts</p>
+                       {renderAiList(aiEquityReport.catalysts)}
+                    </div>
+                    <div className="xl:col-span-6 rounded-2xl border border-rose-500/15 bg-rose-500/[0.03] p-5">
+                       <p className="text-[10px] font-black text-rose-300 uppercase tracking-widest mb-4">Risks</p>
+                       {renderAiList(aiEquityReport.risks)}
+                    </div>
+
+                    <div className="xl:col-span-6 rounded-2xl border border-slate-800 bg-black/20 p-5">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Monitoring Plan</p>
+                       {renderAiList(aiEquityReport.monitoring_plan)}
+                    </div>
+                    <div className="xl:col-span-6 rounded-2xl border border-slate-800 bg-black/20 p-5">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Action Plan</p>
+                       {renderAiList(aiEquityReport.action_plan)}
+                    </div>
+
+                    <p className="xl:col-span-12 text-[10px] text-slate-600 leading-relaxed">{aiEquityReport.disclaimer}</p>
                  </div>
               )}
            </section>
