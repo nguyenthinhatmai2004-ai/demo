@@ -1,0 +1,39 @@
+services:
+  backend:
+    build:
+      context: ./BE
+      dockerfile: Dockerfile
+    image: vn-stock-terminal-be:latest
+    container_name: vn-stock-terminal-be
+    env_file:
+      - ./BE/.env
+    environment:
+      API_HOST: 0.0.0.0
+      API_PORT: 8021
+      DATABASE_URL: sqlite:////app/data/vnstock_v3.db
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      VNSTOCK_QUOTE_SOURCES: VCI,KBS
+      VNSTOCK_FINANCE_SOURCE: VCI
+      NEWS_VERIFY_TLS: "true"
+    ports:
+      - "8021:8021"
+    volumes:
+      - backend_data:/app/data
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./FE
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://127.0.0.1:8021/api
+    image: vn-stock-terminal-fe:latest
+    container_name: vn-stock-terminal-fe
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+
+volumes:
+  backend_data:

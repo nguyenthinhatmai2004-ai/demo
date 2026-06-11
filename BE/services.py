@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from sqlmodel import Session, select
 from vnstock import Vnstock, Quote, Finance
+from config import settings
 from database import MacroIndicator, AITradeLog, StrategyScore, engine
 
 try:
@@ -31,7 +32,7 @@ class StrategyEvaluator:
         details = {}
         
         try:
-            stock = self.vnstock.stock(symbol=ticker, source='KBS')
+            stock = self.vnstock.stock(symbol=ticker, source=settings.vnstock_quote_sources[-1])
             # C & A: Tăng trưởng EPS (Ước tính từ Finance data)
             try:
                 # Dùng v3 API để lấy chỉ số tài chính
@@ -70,7 +71,7 @@ class StrategyEvaluator:
     def validate_sepa_entry(self, ticker: str) -> Dict:
         """Tiêu chí SEPA (Mark Minervini): Tìm điểm mua chính xác (Stage 2 Trend)"""
         try:
-            stock = self.vnstock.stock(symbol=ticker.upper(), source='KBS')
+            stock = self.vnstock.stock(symbol=ticker.upper(), source=settings.vnstock_quote_sources[-1])
             df = stock.quote.history(length=250)
             if df is None or len(df) < 200: return {"status": "INCOMPLETE_DATA"}
 
@@ -266,7 +267,7 @@ except ImportError:
 class OpenAICodexAdvisor:
     def __init__(self):
         self.api_key = os.getenv("OPENAI_API_KEY")
-        self.model = os.getenv("OPENAI_MODEL", "gpt-5.2")
+        self.model = settings.openai_model
         self.client = OpenAI(api_key=self.api_key) if OpenAI and self.api_key else None
 
     def is_configured(self) -> bool:
@@ -464,7 +465,7 @@ class TelegramService:
             f"<b>Price:</b> {price:,.0f} ₫\n"
             f"<b>Strategy:</b> {strategy}\n"
             f"<b>Stop Loss:</b> {sl:,.0f} ₫\n"
-            f"<b>Action:</b> <a href='http://localhost:3000/trader'>Confirm on Terminal</a>"
+            f"<b>Action:</b> <a href='{settings.frontend_trader_url}/trader'>Confirm on Terminal</a>"
         )
         try:
             async with httpx_async.AsyncClient() as client:
@@ -493,7 +494,7 @@ class DnseMarketData:
     def __init__(self):
         self.api_key = os.getenv("DNSE_API_KEY", "")
         self.api_secret = os.getenv("DNSE_API_SECRET", "")
-        self.base_url = os.getenv("DNSE_BASE_URL", "https://openapi.dnse.com.vn")
+        self.base_url = settings.dnse_base_url
 
     @property
     def configured(self) -> bool:
@@ -572,7 +573,7 @@ class QuantTrader:
         dnse_market = DnseMarketData()
         for ticker in tickers:
             try:
-                stock = vst.stock(symbol=ticker, source='KBS')
+                stock = vst.stock(symbol=ticker, source=settings.vnstock_quote_sources[-1])
                 df = stock.quote.history(length=50, resolution='1D')
                 if df is None or df.empty: continue
                 

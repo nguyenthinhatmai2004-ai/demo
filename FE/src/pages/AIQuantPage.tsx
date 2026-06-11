@@ -27,8 +27,7 @@ import { calculatePerformanceMetrics, calculatePortfolioMetrics, generateTradeJo
 import { calculateAIQuantScore, calculateTechnicalScore, classifyAIQuantScore, generateAIExplanation, generateAITradingAction } from '../utils/quantScoring';
 import { calculatePositionSize, calculateRiskRewardScore, generateStopLoss, generateTrailingStop, riskRulesForStock } from '../utils/riskManagement';
 import { calculateVolumeScore, detectAccumulationDistribution, detectVolumeExplosion } from '../utils/volumeEngine';
-
-const API_BASE = 'http://127.0.0.1:8011/api';
+import { API_BASE } from '../api/client';
 
 interface QuantDashboardData {
   stocks: QuantStock[];

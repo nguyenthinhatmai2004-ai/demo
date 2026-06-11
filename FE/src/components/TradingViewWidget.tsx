@@ -1,4 +1,5 @@
 ﻿import React, { useEffect, useRef } from 'react';
+import { useId } from 'react';
 
 interface TradingViewWidgetProps {
   ticker: string;
@@ -6,7 +7,7 @@ interface TradingViewWidgetProps {
 
 const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({ ticker }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const widgetId = useRef(`tv_${Math.random().toString(36).substring(2, 9)}`);
+  const widgetId = `tv_${useId().replace(/:/g, '')}`;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -37,7 +38,7 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({ ticker }) => {
       "enable_publishing": false,
       "allow_symbol_change": true,
       "save_image": false,
-      "container_id": widgetId.current,
+      "container_id": widgetId,
       "show_popup_button": true,
       "popup_width": "1000",
       "popup_height": "650",
@@ -46,7 +47,7 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({ ticker }) => {
     });
 
     const widgetDiv = document.createElement('div');
-    widgetDiv.id = widgetId.current;
+    widgetDiv.id = widgetId;
     widgetDiv.className = "tradingview-widget-container__widget";
     widgetDiv.style.height = "100%";
     widgetDiv.style.width = "100%";
@@ -54,7 +55,7 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({ ticker }) => {
     containerRef.current.appendChild(widgetDiv);
     containerRef.current.appendChild(script);
 
-  }, [ticker]);
+  }, [ticker, widgetId]);
 
   return (
     <div className="w-full h-full flex flex-col bg-black">

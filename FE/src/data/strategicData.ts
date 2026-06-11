@@ -49,6 +49,7 @@ export interface StrategicStock {
     status: string;
   };
   catalystScore: number;
+  catalysts?: string[];
   relativeStrengthScore: number;
   riskRewardScore: number;
   setupStatus: string;
@@ -60,4 +61,3 @@ export interface StrategicStock {
   positionSizePct: string;
   lastUpdated: string;
 }
-

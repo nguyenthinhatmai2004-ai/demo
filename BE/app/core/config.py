@@ -1,0 +1,408 @@
+from datetime import date
+
+from typing import Literal
+
+from pydantic import AliasChoices, Field, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from app.services.vn_market_holiday_calendar import (
+    parse_vn_market_holidays_csv,
+    resolve_vn_market_holiday_dates,
+)
+
+
+class AppSettings(BaseSettings):
+    app_name: str = "VNStock Backend Service"
+    app_host: str = "0.0.0.0"
+    app_port: int = 8000
+    app_reload: bool = True
+    vnstock_api_key: str = ""
+    #: Deprecated placeholder kept so existing .env files with CLAUDE_TOKEN do not break settings loading.
+    claude_token: str = ""
+    #: Single global switch for GPT/Codex-backed features. USE_CLAUDE is accepted as a deprecated alias.
+    use_gpt: bool = Field(default=False, validation_alias=AliasChoices("USE_GPT", "USE_CLAUDE"))
+    #: Default model forwarded to `codex exec --model`. CLAUDE_MODEL is accepted as a deprecated alias.
+    gpt_model: str = Field(default="claude-sonnet-4-6", validation_alias=AliasChoices("GPT_MODEL", "CLAUDE_MODEL"))
+    gpt_max_tokens: int = Field(
+        default=1024,
+        ge=1,
+        le=8192,
+        validation_alias=AliasChoices("GPT_MAX_TOKENS", "CLAUDE_MAX_TOKENS"),
+    )
+    gpt_max_retries: int = Field(
+        default=1,
+        ge=0,
+        le=5,
+        validation_alias=AliasChoices("GPT_MAX_RETRIES", "CLAUDE_MAX_RETRIES"),
+    )
+    gpt_codex_timeout_seconds: int = Field(default=1800, ge=5, le=3600)
+    gpt_codex_workdir: str = "/app"
+    gpt_codex_profile: str = Field(default="")
+    #: Max tokens for GPT scoring enrichment responses.
+    ai_gpt_signal_scoring_max_tokens: int = Field(
+        default=500,
+        ge=128,
+        le=2048,
+        validation_alias=AliasChoices("AI_GPT_SIGNAL_SCORING_MAX_TOKENS", "AI_CLAUDE_SIGNAL_SCORING_MAX_TOKENS"),
+    )
+    #: Redis cache TTL (seconds) for GPT scoring enrichment responses.
+    ai_gpt_signal_scoring_cache_ttl_seconds: int = Field(
+        default=1800,
+        ge=30,
+        le=86_400,
+        validation_alias=AliasChoices(
+            "AI_GPT_SIGNAL_SCORING_CACHE_TTL_SECONDS",
+            "AI_CLAUDE_SIGNAL_SCORING_CACHE_TTL_SECONDS",
+        ),
+    )
+    #: Max tokens for GPT macro/news/economics research responses.
+    ai_gpt_macro_analysis_max_tokens: int = Field(
+        default=1400,
+        ge=400,
+        le=4096,
+        validation_alias=AliasChoices("AI_GPT_MACRO_ANALYSIS_MAX_TOKENS", "AI_CLAUDE_MACRO_ANALYSIS_MAX_TOKENS"),
+    )
+    #: Redis cache TTL (seconds) for GPT macro/news/economics research responses.
+    ai_gpt_macro_analysis_cache_ttl_seconds: int = Field(
+        default=1800,
+        ge=30,
+        le=86_400,
+        validation_alias=AliasChoices(
+            "AI_GPT_MACRO_ANALYSIS_CACHE_TTL_SECONDS",
+            "AI_CLAUDE_MACRO_ANALYSIS_CACHE_TTL_SECONDS",
+        ),
+    )
+    #: Max tokens for GPT experience analysis responses.
+    ai_gpt_experience_max_tokens: int = Field(
+        default=400,
+        ge=128,
+        le=2048,
+        validation_alias=AliasChoices("AI_GPT_EXPERIENCE_MAX_TOKENS", "AI_CLAUDE_EXPERIENCE_MAX_TOKENS"),
+    )
+    #: Redis cache TTL (seconds) for GPT experience analysis responses.
+    ai_gpt_experience_cache_ttl_seconds: int = Field(
+        default=3600,
+        ge=30,
+        le=86_400,
+        validation_alias=AliasChoices("AI_GPT_EXPERIENCE_CACHE_TTL_SECONDS", "AI_CLAUDE_EXPERIENCE_CACHE_TTL_SECONDS"),
+    )
+    #: Max tokens for GPT automation level refinement responses.
+    ai_gpt_automation_levels_max_tokens: int = Field(
+        default=350,
+        ge=128,
+        le=2048,
+        validation_alias=AliasChoices(
+            "AI_GPT_AUTOMATION_LEVELS_MAX_TOKENS",
+            "AI_CLAUDE_AUTOMATION_LEVELS_MAX_TOKENS",
+        ),
+    )
+    #: Redis cache TTL (seconds) for GPT automation level refinement.
+    ai_gpt_automation_levels_cache_ttl_seconds: int = Field(
+        default=900,
+        ge=30,
+        le=86_400,
+        validation_alias=AliasChoices(
+            "AI_GPT_AUTOMATION_LEVELS_CACHE_TTL_SECONDS",
+            "AI_CLAUDE_AUTOMATION_LEVELS_CACHE_TTL_SECONDS",
+        ),
+    )
+    #: Global cool-down seconds after repeated GPT/Codex failures.
+    ai_gpt_failure_cooldown_seconds: int = Field(
+        default=45,
+        ge=5,
+        le=600,
+        validation_alias=AliasChoices("AI_GPT_FAILURE_COOLDOWN_SECONDS", "AI_CLAUDE_FAILURE_COOLDOWN_SECONDS"),
+    )
+    dnse_username: str = ""
+    dnse_password: str = ""
+    #: Gợi ý sub-account mặc định (ví dụ tiền tố TK); FE đọc qua GET /dnse/defaults.
+    dnse_default_sub_account: str = ""
+    #: Sub-account used by server-side REAL execution when ``REAL_EXECUTION_ADAPTER`` is DNSE (overrides default hint).
+    dnse_sub_account: str = ""
+    #: JWT from DNSE login (``POST /dnse/auth/login``). Required for automated REAL execution without per-request login.
+    dnse_access_token: str = ""
+    #: Trading token from ``POST /dnse/auth/trading-token``. Short-lived; refresh out of band for automation.
+    dnse_trading_token: str = ""
+    #: Default stock order type for automated DNSE placement (vnstock ``order_type``, e.g. LO).
+    dnse_order_type: str = "LO"
+    dnse_asset_type: Literal["stock", "derivative"] = "stock"
+    #: Optional loan package id forwarded to vnstock ``place_order``.
+    dnse_loan_package_id: int | None = None
+    #: REAL execution backend: ``demo`` keeps internal simulated fills; ``dnse_live`` calls DNSE (reject on outage, no silent fills).
+    real_execution_adapter: Literal["demo", "dnse_live"] = "demo"
+    dnse_execution_timeout_seconds: float = Field(default=20.0, ge=2.0, le=120.0)
+    dnse_execution_place_retries: int = Field(default=2, ge=0, le=8)
+    dnse_execution_poll_attempts: int = Field(default=6, ge=1, le=40)
+    dnse_execution_poll_interval_seconds: float = Field(default=0.45, ge=0.05, le=5.0)
+    #: Background refresh of trading token for ``dnse_live`` (off by default). Requires valid ``DNSE_ACCESS_TOKEN``.
+    dnse_trading_token_refresh_enabled: bool = False
+    #: Seconds between refresh attempts when enabled (minimum enforced for broker rate safety).
+    dnse_trading_token_refresh_interval_seconds: int = Field(default=300, ge=60, le=86_400)
+    #: Per-attempt timeout for broker ``get_trading_token`` (thread-pool bounded).
+    dnse_trading_token_refresh_timeout_seconds: float = Field(default=30.0, ge=5.0, le=120.0)
+    #: Forwarded to vnstock ``get_trading_token`` when ``DNSE_REFRESH_OTP`` is empty.
+    dnse_trading_token_refresh_smart_otp: bool = True
+    #: OTP for scheduled refresh when ``smart_otp`` is false or broker requires explicit OTP.
+    dnse_refresh_otp: str = ""
+    database_url: str = "postgresql://postgres:postgres@127.0.0.1:5432/trading"
+    redis_url: str = "redis://127.0.0.1:6379/0"
+    ai_cache_ttl_seconds: int = 86400
+    #: Redis TTL for cached vnstock financial responses (default: 30 days).
+    financial_cache_ttl_seconds: int = Field(default=2_592_000, ge=300, le=31_536_000)
+    #: TTL Redis cho danh sách mã theo sàn / theo ngành (listing), mặc định ~1 năm.
+    listing_exchange_industry_redis_ttl_seconds: int = 31_536_000
+    #: TTL cache cho GET /news (tổng hợp RSS).
+    news_cache_ttl_seconds: int = 300
+    #: Khóa API Firecrawl (Bearer) cho GET /news/firecrawl/* — đặt FIRECRAWL_API_KEY trong .env.
+    firecrawl_api_key: str = ""
+    #: Timeout gửi xuống Firecrawl Search (ms), trong khoảng API cho phép.
+    firecrawl_search_timeout_ms: int = 90_000
+    #: Số tin tối đa lấy từ Firecrawl (tin trong ngày) khi gọi GET /news.
+    news_firecrawl_today_max: int = 20
+    #: Mỗi feed RSS lỗi: tối đa số bài Firecrawl Search thay thế (site:domain, tbs=qdr:d).
+    news_firecrawl_fallback_per_feed: int = 5
+    #: Tổng giới hạn bài Firecrawl fallback mỗi request /news (tránh tốn credit).
+    news_firecrawl_fallback_max_total: int = 30
+    #: Số worker song song khi gọi Firecrawl cho nhiều feed lỗi.
+    news_firecrawl_fallback_max_workers: int = 4
+    #: Gmail query for the daily host-run news mail flow.
+    news_mail_gmail_query: str = "Tin tức chứng khoán"
+    #: Max matching daily news mails read by the host-run flow.
+    news_mail_gmail_max_results: int = Field(default=5, ge=1, le=100)
+    #: If today's news mail is missing, search recent days for the latest matching mail.
+    news_mail_gmail_lookback_days: int = Field(default=7, ge=1, le=30)
+    #: Max section links fetched from one daily news-mail run.
+    news_mail_article_fetch_limit: int = Field(default=100, ge=1, le=200)
+    #: Per-article HTTP fetch timeout for news-mail links.
+    news_mail_article_fetch_timeout_seconds: float = Field(default=20.0, ge=2.0, le=120.0)
+    #: Max cleaned article text stored and sent to Codex.
+    news_mail_article_text_max_chars: int = Field(default=8000, ge=1000, le=30000)
+    #: Short-term scanner: minutes between runs during VN regular sessions (09:00–11:30, 13:00–14:45 local).
+    short_term_scan_interval_minutes: int = Field(default=15, ge=1, le=120)
+    #: IANA timezone for session windows and schedule API (VN market local time).
+    short_term_scan_timezone: str = Field(default="Asia/Ho_Chi_Minh", min_length=3, max_length=64)
+    #: Minutes after the 14:45 close before daily bars are considered complete for freshness checks.
+    #: Keeps scans from rejecting every symbol while upstream/post-close caches are still updating.
+    short_term_daily_bar_completion_grace_minutes: int = Field(default=75, ge=0, le=240)
+    #: Drawdown proxy (from snapshots + positions) alert threshold, percent.
+    monitoring_drawdown_alert_pct: float = Field(default=15.0, ge=0.1, le=99.0)
+    #: Rolling window for counting rejected orders (execution stress proxy).
+    monitoring_error_window_minutes: int = Field(default=60, ge=5, le=1440)
+    #: How many rejected orders in the window triggers an alert.
+    monitoring_error_count_threshold: int = Field(default=5, ge=1, le=500)
+    #: If the latest signal is older than this many minutes, emit stale-data alert.
+    monitoring_signal_stale_minutes: int = Field(default=240, ge=1, le=10080)
+    #: Suppress duplicate same-rule alerts within this many minutes.
+    monitoring_alert_cooldown_minutes: int = Field(default=30, ge=1, le=1440)
+    #: Max open-position symbols to fetch external mark prices for (dashboard MTM only).
+    monitoring_dashboard_mtm_max_symbols: int = Field(default=40, ge=1, le=200)
+    #: Telegram bot token for production alert push (optional).
+    monitoring_telegram_bot_token: str = ""
+    #: Telegram chat id for production alert push (optional).
+    monitoring_telegram_chat_id: str = ""
+    #: Slack incoming webhook URL for production alert push (optional).
+    monitoring_slack_webhook_url: str = ""
+    #: Outbound timeout when dispatching alert to external channels.
+    monitoring_alert_dispatch_timeout_seconds: float = Field(default=5.0, ge=1.0, le=30.0)
+    #: Enable internal short-term scheduler loop (disabled by default for safety).
+    automation_short_term_scheduler_enabled: bool = False
+    #: Poll interval (seconds) for internal scheduler loop.
+    automation_short_term_scheduler_poll_seconds: int = Field(default=30, ge=5, le=300)
+    #: Scheduler scan cap per exchange scope (HOSE/HNX/UPCOM). 0 means unlimited.
+    #: Keep this bounded so one grid slot doesn't hold the advisory lock too long.
+    automation_short_term_scheduler_limit_symbols: int = Field(default=60, ge=0, le=500)
+    #: Hard timeout for one short-term scan batch to avoid lock starvation.
+    #: Set 0 to disable timeout (scheduler can choose to run without timeout).
+    #: Default 15 minutes for full-universe scans across HOSE/HNX/UPCOM.
+    automation_short_term_scan_timeout_seconds: int = Field(default=900, ge=0, le=1800)
+    #: Global throttle for vnstock calls per process to reduce upstream rate-limit bursts.
+    vnstock_max_requests_per_minute: int = Field(default=48, ge=10, le=600)
+    #: Cooldown in seconds between exchange phases for ALL-scope manual scan.
+    automation_short_term_scan_exchange_cooldown_seconds: float = Field(default=5.0, ge=0.0, le=120.0)
+    #: Hard timeout budget per exchange phase when scope=ALL (HOSE/HNX/UPCOM).
+    #: Set 0 to disable timeout budget for the phase.
+    automation_short_term_scan_all_phase_timeout_seconds: int = Field(default=120, ge=0, le=900)
+    #: Retry attempts for full scan when upstream rate-limit is detected before falling back to light mode.
+    automation_short_term_scan_rate_limit_retry_attempts: int = Field(default=1, ge=0, le=6)
+    #: Base backoff delay (seconds) between full-scan retries after rate-limit.
+    automation_short_term_scan_rate_limit_retry_backoff_seconds: float = Field(default=8.0, ge=1.0, le=120.0)
+    #: Hard timeout for one BUY handling step (risk + place_order) to prevent post-scan hangs.
+    #: Set 0 to disable timeout for one buy step.
+    automation_short_term_buy_step_timeout_seconds: int = Field(default=25, ge=0, le=180)
+    #: Timeout for fallback light scan after full scan hits the hard timeout.
+    #: Set 0 to disable fallback timeout.
+    #: Increased default for unlimited fallback scans.
+    automation_short_term_scan_fallback_light_timeout_seconds: int = Field(default=900, ge=0, le=1800)
+    #: Max symbols processed in fallback light scan (4 per exchange x 3 = 12).
+    automation_short_term_scan_fallback_light_max_symbols: int = Field(default=12, ge=4, le=20)
+    #: Liquidity floor (average 20 sessions volume) to exclude illiquid/penny-like symbols from short-term analysis.
+    short_term_scan_min_avg_daily_volume: float = Field(default=20_000.0, ge=0.0, le=100_000_000.0)
+    #: Minimum latest-session volume to consider a symbol actively traded for short-term analysis.
+    short_term_scan_min_latest_volume: float = Field(default=10_000.0, ge=0.0, le=100_000_000.0)
+    #: Recent sessions checked to reject symbols that do not trade regularly.
+    short_term_scan_liquidity_regular_window_sessions: int = Field(default=20, ge=5, le=60)
+    #: Minimum per-session volume counted as an active recent trading session.
+    short_term_scan_min_regular_session_volume: float = Field(default=10_000.0, ge=0.0, le=100_000_000.0)
+    #: Minimum active sessions inside the regular liquidity window.
+    short_term_scan_min_active_sessions: int = Field(default=12, ge=1, le=60)
+    #: Maximum zero-volume sessions tolerated inside the regular liquidity window.
+    short_term_scan_max_zero_volume_sessions: int = Field(default=2, ge=0, le=60)
+    #: Minimum volume spike ratio (latest / 30-session baseline) required before running short-term analysis.
+    short_term_scan_min_volume_spike_ratio: float = Field(default=1.5, ge=1.0, le=20.0)
+    #: CMT/VN setup thresholds used after the broad short-term liquidity/spike pre-filter.
+    short_term_breakout_min_volume_spike_ratio: float = Field(default=1.8, ge=1.0, le=20.0)
+    short_term_pullback_min_volume_spike_ratio: float = Field(default=1.15, ge=1.0, le=20.0)
+    short_term_accumulation_min_volume_spike_ratio: float = Field(default=1.2, ge=1.0, le=20.0)
+    short_term_rsi_hard_reject: float = Field(default=80.0, ge=50.0, le=100.0)
+    short_term_max_distance_from_ema20_pct: float = Field(default=8.0, ge=1.0, le=25.0)
+    short_term_min_stop_distance_pct: float = Field(default=3.5, ge=0.5, le=15.0)
+    short_term_market_breadth_risk_on_pct: float = Field(default=0.55, ge=0.0, le=1.0)
+    short_term_market_breadth_risk_off_pct: float = Field(default=0.45, ge=0.0, le=1.0)
+    short_term_risk_off_min_relative_strength_rank_pct: float = Field(default=60.0, ge=0.0, le=100.0)
+    short_term_risk_off_size_multiplier: float = Field(default=0.5, ge=0.0, le=1.0)
+    short_term_neutral_weak_rs_size_multiplier: float = Field(default=0.75, ge=0.0, le=1.0)
+    #: Redis TTL for per-symbol liquidity gate cache (symbol + exchange).
+    short_term_symbol_liquidity_cache_ttl_seconds: int = Field(default=86_400, ge=300, le=604_800)
+    #: Enable pre-market warmup job to populate short-term liquidity cache each weekday.
+    automation_short_term_cache_warm_enabled: bool = False
+    #: Warmup schedule (VN local time), default 07:00 Monday-Friday.
+    automation_short_term_cache_warm_hour: int = Field(default=7, ge=0, le=23)
+    automation_short_term_cache_warm_minute: int = Field(default=0, ge=0, le=59)
+    #: Enable post-close refresh: update latest daily volume + rebuild short-term liquidity cache from DB.
+    automation_short_term_post_close_refresh_enabled: bool = True
+    #: Worker count for post-close daily volume backfill. Calls still pass through vnstock RPM throttle.
+    automation_short_term_post_close_refresh_max_workers: int = Field(default=4, ge=1, le=16)
+    #: Post-close refresh schedule (VN local time), default 16:00 Monday-Friday.
+    automation_short_term_post_close_refresh_hour: int = Field(default=16, ge=0, le=23)
+    automation_short_term_post_close_refresh_minute: int = Field(default=0, ge=0, le=59)
+    #: Optional comma-separated local hours for post-close refresh, e.g. "12,16".
+    #: When provided, this overrides `automation_short_term_post_close_refresh_hour`.
+    automation_short_term_post_close_refresh_hours_csv: str = ""
+    #: Enable DEMO portfolio Codex review scheduler. DEMO-only; never places REAL broker orders.
+    demo_portfolio_review_scheduler_enabled: bool = True
+    #: Comma-separated VN local times for DEMO portfolio review, e.g. "12:00,17:00".
+    demo_portfolio_review_schedule_times_csv: str = "12:00,17:00"
+    demo_portfolio_review_timezone: str = "Asia/Ho_Chi_Minh"
+    demo_portfolio_review_max_tokens: int = Field(default=1200, ge=300, le=5000)
+    #: Retention window (days) for market_symbol_daily_volume writes.
+    market_symbol_daily_volume_retention_days: int = Field(default=90, ge=5, le=120)
+    #: Optional CSV list of VN market holidays: YYYY-MM-DD,YYYY-MM-DD
+    vn_market_holidays_csv: str = ""
+    #: When true, merge packaged `app/data/vn_market_holidays_builtin.json` into the holiday set.
+    vn_market_holidays_builtin_enabled: bool = True
+    #: Optional path to local JSON file: array of YYYY-MM-DD or {"dates": [...]} — no network I/O.
+    vn_market_holidays_json_path: str = ""
+    #: Gmail OAuth desktop client secret JSON path (from Google Cloud Console).
+    gmail_oauth_client_secret_file: str = "credentials/gmail_client_secret.json"
+    #: Gmail OAuth token cache path (auto-created after first consent flow).
+    gmail_oauth_token_file: str = "credentials/gmail_token.json"
+    #: Default local directory for downloaded Gmail .eml/attachments.
+    gmail_download_dir: str = "downloads/gmail"
+    #: Enable weekday mail->GPT signal scheduler.
+    mail_signal_scheduler_enabled: bool = False
+    #: Mail signal scheduler timezone and run time (Mon-Fri).
+    mail_signal_scheduler_timezone: str = "Asia/Ho_Chi_Minh"
+    mail_signal_scheduler_hour: int = Field(default=19, ge=0, le=23)
+    mail_signal_scheduler_minute: int = Field(default=30, ge=0, le=59)
+    #: Base Gmail query used for daily signal ingestion.
+    mail_signal_gmail_query: str = "Tín hiệu Cạn Cung"
+    #: Max today-matched emails scanned for one scheduler run.
+    mail_signal_gmail_max_results: int = Field(default=20, ge=1, le=100)
+    #: Redis key TTL for persisted GPT signal picks.
+    mail_signal_redis_ttl_seconds: int = Field(default=604800, ge=300, le=2_592_000)
+    #: Enable 15-minute auto-entry execution from previous-day mail signals.
+    mail_signal_entry_scheduler_enabled: bool = False
+    #: Account mode used by mail-signal entry execution.
+    mail_signal_entry_account_mode: Literal["REAL", "DEMO"] = "DEMO"
+    #: NAV and risk config used for risk-sized quantity when entry is hit.
+    mail_signal_entry_nav: float = Field(default=100_000_000.0, gt=0.0, le=10_000_000_000.0)
+    mail_signal_entry_risk_per_trade: float = Field(default=0.01, gt=0.0, le=0.05)
+    #: Safety cap to avoid oversized entries.
+    mail_signal_entry_max_quantity: int = Field(default=100_000, ge=1, le=10_000_000)
+    #: Total cash pool for strategy allocation.
+    strategy_total_cash_vnd: float = Field(default=100_000_000.0, gt=0.0, le=100_000_000_000.0)
+    #: Allocation percentages from total cash pool.
+    strategy_alloc_short_term_pct: float = Field(default=0.2, ge=0.0, le=1.0)
+    strategy_alloc_mail_signal_pct: float = Field(default=0.2, ge=0.0, le=1.0)
+    #: Per-trade risk budget used by recommendation preflight and action-buy sizing.
+    strategy_risk_per_trade: float = Field(default=0.01, gt=0.0, le=0.05)
+    #: Max pending T+2 notional / REAL tradable cash before new REAL recommendations are blocked.
+    strategy_t2_max_pending_notional_pct: float = Field(default=0.4, ge=0.0, le=2.0)
+    #: Pending T+2 ratio where recommendation sizing starts reserving extra short-term budget.
+    strategy_t2_pending_pressure_haircut_start_pct: float = Field(default=0.2, ge=0.0, le=2.0)
+    #: Fraction of remaining short-term budget withheld when T+2 pressure is elevated.
+    strategy_t2_pending_pressure_haircut_pct: float = Field(default=0.5, ge=0.0, le=1.0)
+    #: Allow additional REAL buy recommendations for a symbol that already has unsettled T+2 lots.
+    strategy_t2_same_symbol_scale_in_allowed: bool = False
+    #: Max REAL buy/new orders generated by recommendation flow per VN trading day.
+    strategy_max_daily_new_orders: int = Field(default=10, ge=1, le=100)
+    #: Max notional exposure for one symbol as a fraction of REAL cash base.
+    strategy_max_symbol_exposure_pct: float = Field(default=0.12, ge=0.01, le=1.0)
+    #: Max notional exposure for one industry/sector as a fraction of REAL cash base.
+    strategy_max_sector_exposure_pct: float = Field(default=0.35, ge=0.01, le=1.0)
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        populate_by_name=True,
+    )
+
+    @field_validator("short_term_scan_timezone")
+    @classmethod
+    def _timezone_must_resolve(cls, v: str) -> str:
+        try:
+            ZoneInfo(v)
+        except ZoneInfoNotFoundError as e:
+            raise ValueError(f"Invalid IANA timezone: {v!r}") from e
+        return v
+
+    @field_validator("demo_portfolio_review_timezone")
+    @classmethod
+    def _demo_review_timezone_must_resolve(cls, v: str) -> str:
+        try:
+            ZoneInfo(v)
+        except ZoneInfoNotFoundError as e:
+            raise ValueError(f"Invalid IANA timezone: {v!r}") from e
+        return v
+
+    @field_validator("gpt_model")
+    @classmethod
+    def _gpt_model_must_not_be_legacy_claude_model(cls, v: str) -> str:
+        model = str(v or "").strip()
+        if not model or model.lower().startswith("claude-"):
+            return "claude-sonnet-4-6"
+        return model
+
+    @model_validator(mode="after")
+    def _short_term_scan_interval_aligns_sessions(self) -> "AppSettings":
+        from app.services.short_term_scan_schedule import validate_interval_for_default_sessions
+
+        try:
+            validate_interval_for_default_sessions(self.short_term_scan_interval_minutes)
+        except ValueError as e:
+            raise ValueError(
+                f"short_term_scan_interval_minutes={self.short_term_scan_interval_minutes!r} "
+                f"does not align with VN session windows: {e}"
+            ) from e
+        return self
+
+
+settings = AppSettings()
+
+
+def parse_vn_market_holidays(raw_csv: str) -> set[date]:
+    """Backward-compatible CSV-only parser (same as legacy `parse_vn_market_holidays_csv`)."""
+    return parse_vn_market_holidays_csv(raw_csv)
+
+
+def get_vn_market_holiday_dates() -> frozenset[date]:
+    """Union of builtin JSON (optional), optional local JSON file, and CSV env."""
+    return resolve_vn_market_holiday_dates(
+        builtin_enabled=settings.vn_market_holidays_builtin_enabled,
+        json_path=settings.vn_market_holidays_json_path,
+        csv=settings.vn_market_holidays_csv,
+    )
+
+

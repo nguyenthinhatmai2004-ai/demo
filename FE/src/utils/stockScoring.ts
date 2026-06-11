@@ -48,14 +48,45 @@ export const generateAIVerdict = (stock: StrategicStock): string => {
   return 'Tránh mua mới.';
 };
 
-export const getCatalystBadges = (ticker: string, sector: string): string[] => {
+const tickerCatalystBadges: Record<string, string[]> = {
+  FPT: ['AI Factory và hợp đồng công nghệ quốc tế', 'Viễn thông và giáo dục giữ nền dòng tiền'],
+  HPG: ['Dung Quất 2 ramp-up', 'Spread thép và tái tích trữ'],
+  DGC: ['Chu kỳ giá phốt pho vàng', 'Dự án hóa chất mới'],
+  SSI: ['Thanh khoản thị trường và nâng hạng', 'Deal ECM/IB quay lại'],
+  VCI: ['Pipeline ngân hàng đầu tư', 'Tự doanh và brokerage hồi phục'],
+  VND: ['Margin và thị phần môi giới', 'Tái định vị sau giai đoạn rủi ro vận hành'],
+  VCB: ['Chất lượng tài sản và CASA', 'Tăng vốn và room tín dụng'],
+  MBB: ['Hệ sinh thái số và CASA', 'Tín dụng bán lẻ/quốc phòng ổn định'],
+  TCB: ['CASA phục hồi', 'Trái phiếu và bất động sản giảm áp lực'],
+  ACB: ['Bán lẻ chất lượng cao', 'Cổ tức tiền mặt/cổ phiếu'],
+  MWG: ['Bách Hóa Xanh hòa vốn và mở rộng', 'Điện máy/điện thoại hồi phục'],
+  PNJ: ['Sức mua trang sức và mở cửa hàng', 'Giá vàng ổn định'],
+  MSN: ['WinCommerce cải thiện biên', 'Giảm đòn bẩy và tái cấu trúc danh mục'],
+  VNM: ['Biên sữa phục hồi', 'Xuất khẩu và thị phần nội địa'],
+  VIC: ['VinFast và tiến độ gọi vốn', 'Bàn giao bất động sản và dịch vụ'],
+  VHM: ['Bàn giao đại dự án', 'Pháp lý và presales'],
+  KDH: ['Mở bán dự án thấp tầng', 'Bảng cân đối lành mạnh'],
+  NLG: ['Bàn giao Akari/Waterpoint', 'Presales phục hồi'],
+  CTD: ['Backlog xây dựng mới', 'Biên gộp hồi phục'],
+  HHV: ['Đầu tư công và PPP giao thông', 'Lưu lượng thu phí'],
+  VCG: ['Backlog hạ tầng', 'Bất động sản và thoái vốn']
+};
+
+export const getCatalystBadges = (stockOrTicker: StrategicStock | string, sector = ''): string[] => {
+  const stock = typeof stockOrTicker === 'string' ? undefined : stockOrTicker;
+  const ticker = (typeof stockOrTicker === 'string' ? stockOrTicker : stockOrTicker.ticker).toUpperCase();
+  const resolvedSector = stock?.sector ?? sector;
+  const fromApi = stock?.catalysts?.filter((item) => item.trim()).slice(0, 4) ?? [];
+  if (fromApi.length > 0) return fromApi;
+  if (tickerCatalystBadges[ticker]) return tickerCatalystBadges[ticker];
+
   const badges: string[] = [];
   if (['VIC', 'VHM', 'HPG', 'FPT', 'MSN', 'VCB', 'SSI', 'VNM', 'SAB'].includes(ticker)) badges.push('Nâng hạng / ETF');
-  if (sector.includes('Công nghệ')) badges.push('AI', 'Chuyển đổi số');
-  if (sector.includes('Chứng khoán')) badges.push('Thanh khoản', 'Margin phục hồi');
-  if (sector.includes('Ngân hàng')) badges.push('GDP tăng', 'CASA');
-  if (sector.includes('Vật liệu')) badges.push('Đầu tư công', 'Chu kỳ thép');
-  if (sector.includes('Bất động sản')) badges.push('Pháp lý', 'Lãi suất hỗ trợ');
-  if (sector.includes('Tiêu dùng')) badges.push('Sức mua', 'Tái cấu trúc');
+  if (resolvedSector.includes('Công nghệ')) badges.push('Hợp đồng chuyển đổi số', 'AI và cloud');
+  if (resolvedSector.includes('Chứng khoán')) badges.push('Thanh khoản thị trường', 'Dư nợ margin');
+  if (resolvedSector.includes('Ngân hàng')) badges.push('Room tín dụng', 'CASA / NIM');
+  if (resolvedSector.includes('Vật liệu') || resolvedSector.includes('Thép')) badges.push('Đầu tư công', 'Chu kỳ hàng hóa');
+  if (resolvedSector.includes('Bất động sản')) badges.push('Pháp lý dự án', 'Presales');
+  if (resolvedSector.includes('Tiêu dùng')) badges.push('Sức mua nội địa', 'Biên lợi nhuận');
   return badges;
 };

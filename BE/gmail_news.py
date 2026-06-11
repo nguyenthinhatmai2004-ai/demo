@@ -4,7 +4,7 @@ import imaplib
 import os
 import re
 import unicodedata
-from datetime import datetime
+from datetime import datetime, timedelta
 from email.header import decode_header, make_header
 from email.message import Message
 from email.utils import parsedate_to_datetime
@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from zoneinfo import ZoneInfo
 
+from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
 
@@ -135,19 +136,29 @@ def _has_any(text: str, keywords: set[str]) -> bool:
 
 def _message_text(message: Message) -> str:
     parts: List[str] = []
+    html_parts: List[str] = []
     if message.is_multipart():
         for part in message.walk():
             content_type = part.get_content_type()
-            if content_type != "text/plain":
+            if content_type not in {"text/plain", "text/html"}:
                 continue
             payload = part.get_payload(decode=True)
-            if payload:
-                parts.append(_fix_encoding(payload.decode(part.get_content_charset() or "utf-8", errors="replace")))
+            if not payload:
+                continue
+            text = _fix_encoding(payload.decode(part.get_content_charset() or "utf-8", errors="replace"))
+            if content_type == "text/plain":
+                parts.append(text)
+            else:
+                html_parts.append(BeautifulSoup(text, "html.parser").get_text("\n"))
     else:
         payload = message.get_payload(decode=True)
         if payload:
-            parts.append(_fix_encoding(payload.decode(message.get_content_charset() or "utf-8", errors="replace")))
-    return "\n".join(parts)
+            text = _fix_encoding(payload.decode(message.get_content_charset() or "utf-8", errors="replace"))
+            if message.get_content_type() == "text/html":
+                html_parts.append(BeautifulSoup(text, "html.parser").get_text("\n"))
+            else:
+                parts.append(text)
+    return "\n".join(parts or html_parts)
 
 
 def _date_iso(value: Optional[str]) -> str:
@@ -166,8 +177,9 @@ class GmailNewsClient:
         self.address = os.getenv("GMAIL_ADDRESS", "").strip()
         self.password = os.getenv("GMAIL_APP_PASSWORD", "").strip()
         self.mailbox = os.getenv("GMAIL_MAILBOX", "INBOX").strip() or "INBOX"
-        self.default_query = os.getenv("GMAIL_NEWS_QUERY", "longnt.1608 newer_than:30d").strip()
+        self.default_query = os.getenv("GMAIL_NEWS_QUERY", "long.nt1608 newer_than:2d").strip()
         self.default_sender = os.getenv("GMAIL_NEWS_SENDER", "").strip()
+        self.lookback_hours = self._env_int("GMAIL_NEWS_LOOKBACK_HOURS", 48)
 
     def is_configured(self) -> bool:
         return bool(self.address and self.password)
@@ -179,6 +191,7 @@ class GmailNewsClient:
             "mailbox": self.mailbox,
             "query": self.default_query,
             "sender": self.default_sender,
+            "lookbackHours": self.lookback_hours,
         }
 
     async def fetch_news(self, ticker: str = "", limit: int = 15) -> List[Dict]:
@@ -267,14 +280,17 @@ class GmailNewsClient:
         sender = _decode(message.get("From"))
         body = _message_text(message)
         published_at = _date_iso(message.get("Date"))
-        if not self._is_current_local_date(published_at):
+        if not self._is_within_lookback(published_at):
             return []
 
         items = self._parse_bot_news(uid, subject, sender, body, published_at)
         if items:
             return self._filter_relevant_items(items, ticker) if ticker else items
 
-        return []
+        fallback = self._message_to_news(uid, message, ticker)
+        fallback["category"] = self._category_for("Gmail", f"{fallback.get('title', '')} {fallback.get('summary', '')}")
+        fallback["section"] = "Gmail"
+        return self._filter_relevant_items([fallback], ticker) if ticker else [fallback]
 
     def _parse_bot_news(self, uid: str, subject: str, sender: str, body: str, published_at: str) -> List[Dict]:
         items: List[Dict] = []
@@ -425,12 +441,21 @@ class GmailNewsClient:
             return "MARKET"
         return "MARKET"
 
-    def _is_current_local_date(self, value: str) -> bool:
+    @staticmethod
+    def _env_int(name: str, default: int) -> int:
+        try:
+            return max(1, int(os.getenv(name, str(default))))
+        except ValueError:
+            return default
+
+    def _is_within_lookback(self, value: str) -> bool:
         try:
             parsed = datetime.fromisoformat(value)
             if parsed.tzinfo is None:
                 parsed = parsed.replace(tzinfo=ZoneInfo("UTC"))
-            return parsed.astimezone(ZoneInfo("Asia/Ho_Chi_Minh")).date() == datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).date()
+            now = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
+            cutoff = now - timedelta(hours=self.lookback_hours)
+            return parsed.astimezone(ZoneInfo("Asia/Ho_Chi_Minh")) >= cutoff
         except Exception:
             return True
 

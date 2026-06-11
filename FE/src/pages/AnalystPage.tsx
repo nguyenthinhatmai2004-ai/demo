@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   Activity, Zap, TrendingUp, Shield, 
@@ -8,8 +8,7 @@ import {
 } from 'lucide-react';
 import ProprietaryFinancialChart from '../components/ProprietaryFinancialChart';
 import ProprietaryTechnicalChart from '../components/ProprietaryTechnicalChart';
-
-const API_BASE = 'http://127.0.0.1:8011/api';
+import { API_BASE } from '../api/client';
 
 const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   const [reports, setReports] = useState<any[]>([]);
@@ -24,7 +23,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   const [aiEquityReport, setAiEquityReport] = useState<any>(null);
   const [activeSection, setActiveSection] = useState('overview');
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     const safeGet = async (url: string, fallback: any) => {
       try {
         const res = await axios.get(url);
@@ -70,13 +69,13 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
     setTechnicalAnalysis(techRes);
     setRealtimeQuote(quoteRes);
     setMarketScanner(scannerRes);
-  };
+  }, [activeTicker]);
 
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, [activeTicker]);
+  }, [fetchData]);
 
   const downloadResearchPdf = async () => {
     const ticker = activeTicker.toUpperCase();
@@ -791,7 +790,7 @@ const AnalystPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
                              <span className="px-3 py-1 bg-blue-500/10 text-blue-400 rounded text-[9px] font-black uppercase">{r.recommendation || prospects?.recommendation || 'N/A'}</span>
                           </td>
                           <td className="p-6 border-b border-slate-800/50 text-right font-black tabular-nums">
-                             {(r.target_price || prospects?.consensus?.avg_target).toLocaleString()} ₫
+                             {(r.target_price || prospects?.consensus?.avg_target || 0).toLocaleString()} ₫
                           </td>
                           <td className="p-6 border-b border-slate-800/50 text-right text-emerald-500 font-black tabular-nums">
                              +{(r.upside ?? prospects?.upside ?? 0)}%

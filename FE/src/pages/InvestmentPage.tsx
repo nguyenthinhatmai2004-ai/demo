@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Target, Globe, Activity, Shield, Zap, Briefcase } from 'lucide-react';
 import StrategicPage from './StrategicPage';
-
-const API_BASE = 'http://127.0.0.1:8011/api';
+import { API_BASE } from '../api/client';
 
 const InvestmentPage: React.FC<{ activeTicker: string }> = ({ activeTicker }) => {
   const [strategy, setStrategy] = useState<any>(null);

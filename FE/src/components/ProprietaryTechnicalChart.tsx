@@ -2,8 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType } from 'lightweight-charts';
 import axios from 'axios';
 import { Cpu } from 'lucide-react';
-
-const API_BASE = 'http://127.0.0.1:8011/api';
+import { API_BASE } from '../api/client';
 
 interface ProprietaryTechnicalChartProps {
   ticker: string;

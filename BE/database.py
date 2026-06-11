@@ -1,13 +1,10 @@
 from sqlmodel import SQLModel, Field, create_engine, Session
 from typing import Optional
 from datetime import datetime
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
+from config import settings
 
 # Ưu tiên PostgreSQL nếu có cấu hình trong .env, nếu không dùng SQLite
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./vnstock_v3.db")
+DATABASE_URL = settings.database_url
 
 # Cấu hình connect_args đặc biệt cho SQLite để hỗ trợ đa luồng trong FastAPI
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}

@@ -4,6 +4,7 @@ from typing import List, Dict, Optional
 import logging
 import asyncio
 import random
+from config import settings
 from gmail_news import GmailNewsClient
 
 logger = logging.getLogger(__name__)
@@ -41,7 +42,7 @@ class NewsAggregator:
         url = f"https://cafef.vn/tim-kiem.chn?keywords={ticker}" if ticker else "https://cafef.vn/thi-truong-chung-khoan.chn"
         news = []
         try:
-            async with httpx.AsyncClient(headers=self.headers, verify=False, timeout=10.0) as client:
+            async with httpx.AsyncClient(headers=self.headers, verify=settings.news_verify_tls, timeout=10.0) as client:
                 resp = await client.get(url)
                 soup = BeautifulSoup(resp.text, 'html.parser')
                 items = soup.select('.item-content') or soup.select('.box-item') or soup.select('li.et-item')
@@ -64,7 +65,7 @@ class NewsAggregator:
         url = f"https://vietnambiz.vn/tim-kiem.htm?q={ticker}"
         news = []
         try:
-            async with httpx.AsyncClient(headers=self.headers, verify=False, timeout=10.0) as client:
+            async with httpx.AsyncClient(headers=self.headers, verify=settings.news_verify_tls, timeout=10.0) as client:
                 resp = await client.get(url)
                 soup = BeautifulSoup(resp.text, 'html.parser')
                 items = soup.select('article') or soup.find_all(class_='box-news-item')
@@ -85,7 +86,7 @@ class NewsAggregator:
         url = f"https://vietstock.vn/tim-kiem?q={ticker}"
         news = []
         try:
-            async with httpx.AsyncClient(headers=self.headers, verify=False, timeout=10.0) as client:
+            async with httpx.AsyncClient(headers=self.headers, verify=settings.news_verify_tls, timeout=10.0) as client:
                 resp = await client.get(url)
                 soup = BeautifulSoup(resp.text, 'html.parser')
                 items = soup.select('.channel-title') or soup.select('h3')
@@ -106,7 +107,7 @@ class NewsAggregator:
         url = f"https://nguoiquansat.vn/search?q={ticker}"
         news = []
         try:
-            async with httpx.AsyncClient(headers=self.headers, verify=False, timeout=10.0) as client:
+            async with httpx.AsyncClient(headers=self.headers, verify=settings.news_verify_tls, timeout=10.0) as client:
                 resp = await client.get(url)
                 soup = BeautifulSoup(resp.text, 'html.parser')
                 items = soup.select('.story__title') or soup.select('h2')
@@ -127,7 +128,7 @@ class NewsAggregator:
         url = f"https://www.tinnhanhchungkhoan.vn/tim-kiem/{ticker}.html"
         news = []
         try:
-            async with httpx.AsyncClient(headers=self.headers, verify=False, timeout=10.0) as client:
+            async with httpx.AsyncClient(headers=self.headers, verify=settings.news_verify_tls, timeout=10.0) as client:
                 resp = await client.get(url)
                 soup = BeautifulSoup(resp.text, 'html.parser')
                 items = soup.select('.story__title') or soup.select('.title')

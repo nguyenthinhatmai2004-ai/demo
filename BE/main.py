@@ -3,9 +3,10 @@ import os
 import logging
 import json
 import random
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import List, Optional, Dict
-from datetime import datetime, timedelta
+from datetime import datetime
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
@@ -13,12 +14,13 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 from vnstock import Quote
 
+from config import settings
 # Import database components
 from database import create_db_and_tables, get_session, News, MacroIndicator, AITradeLog, Watchlist, StrategyScore, engine
 from scraper import NewsAggregator
 from gmail_news import GmailNewsClient
 from services import StrategyEvaluator, MacroEngine, QuantTrader, TelegramService, BrokerTrader, OpenAICodexAdvisor, DnseMarketData
-from live_dashboard import get_quant_dashboard, get_strategic_dashboard, data_sources, get_research_model, build_research_pdf, get_live_ratios
+from live_dashboard import SYMBOL_META, get_quant_dashboard, get_strategic_dashboard, data_sources, get_research_model, build_research_pdf, get_live_ratios
 
 # Load environment variables
 load_dotenv(dotenv_path=Path(__file__).with_name(".env"), override=True)
@@ -55,17 +57,30 @@ class VNStockTerminalApp:
         self.app = FastAPI(
             title="VN Stock Terminal v3.0",
             description="High-performance Realtime Financial Engine",
-            version="3.0.0"
+            version="3.0.0",
+            lifespan=self._lifespan,
         )
         self.news_aggregator = NewsAggregator()
         self.gmail_news = GmailNewsClient()
         self._setup_middleware()
         self._setup_routes()
 
+    @asynccontextmanager
+    async def _lifespan(self, app: FastAPI):
+        logger.info("Starting up VN Stock Terminal Engine (LIVE MODE)...")
+        create_db_and_tables()
+        heartbeat_task = asyncio.create_task(self._heartbeat_task())
+        try:
+            yield
+        finally:
+            heartbeat_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await heartbeat_task
+
     def _setup_middleware(self):
         self.app.add_middleware(
             CORSMiddleware,
-            allow_origins=["*"],
+            allow_origins=settings.cors_origins,
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
@@ -83,12 +98,6 @@ class VNStockTerminalApp:
             prompt: str
             context: Optional[Dict] = None
 
-        @self.app.on_event("startup")
-        def on_startup():
-            logger.info("Starting up VN Stock Terminal Engine (LIVE MODE)...")
-            create_db_and_tables()
-            asyncio.create_task(self._heartbeat_task())
-
         @self.app.get("/")
         async def root():
             return {"status": "active", "mode": "LIVE_VNSTOCK"}
@@ -103,12 +112,12 @@ class VNStockTerminalApp:
         # --- LIVE MARKET DATA ---
         @self.app.get("/api/market/ticker-tape")
         async def get_ticker_tape():
-            tickers = ["FPT", "SSI", "HPG", "VCB", "DGC", "VNM", "TCB", "MWG", "PNJ", "VIC"]
+            tickers = settings.ticker_tape_symbols
             result = []
             try:
                 for t in tickers:
                     try:
-                        q = Quote(symbol=t, source='KBS')
+                        q = Quote(symbol=t, source=settings.vnstock_quote_sources[-1])
                         df = q.history(length='1M', interval='1D')
                         if not df.empty and len(df) >= 2:
                             latest = df.iloc[-1]
@@ -130,7 +139,7 @@ class VNStockTerminalApp:
             ticker = ticker.upper()
             try:
                 # 1. Thử lấy TOÀN BỘ dữ liệu thực từ vnstock (Nguồn VCI/KBS hỗ trợ Quote)
-                for src in ['VCI', 'KBS']:
+                for src in settings.vnstock_quote_sources:
                     try:
                         q = Quote(symbol=ticker, source=src)
                         # Lấy từ năm 2000 để có TOÀN BỘ lịch sử
@@ -160,7 +169,7 @@ class VNStockTerminalApp:
         async def get_intraday(ticker: str):
             ticker = ticker.upper()
             try:
-                q = Quote(symbol=ticker, source='KBS')
+                q = Quote(symbol=ticker, source=settings.vnstock_quote_sources[-1])
                 df = q.history(length='10D', interval='1D')
                 if df is None or df.empty:
                     return []
@@ -184,7 +193,7 @@ class VNStockTerminalApp:
         async def get_realtime_quote(ticker: str):
             ticker = ticker.upper()
             try:
-                for src in ['KBS', 'VCI']:
+                for src in settings.vnstock_quote_sources:
                     try:
                         q = Quote(symbol=ticker, source=src)
                         # Lấy 2 phiên gần nhất để tính change %
@@ -235,6 +244,18 @@ class VNStockTerminalApp:
         async def get_data_sources():
             return data_sources()
 
+        @self.app.get("/api/universe")
+        async def get_universe():
+            return {
+                "symbols": [
+                    {"ticker": ticker, **meta}
+                    for ticker, meta in SYMBOL_META.items()
+                ],
+                "ticker_tape": settings.ticker_tape_symbols,
+                "scan_symbols": settings.scan_symbols,
+                "sources": data_sources(),
+            }
+
         @self.app.get("/api/quant/dashboard")
         async def get_quant_dashboard_api():
             return get_quant_dashboard()
@@ -274,7 +295,7 @@ class VNStockTerminalApp:
 
             market_context = payload.context or {}
             try:
-                quote = Quote(symbol=ticker, source='KBS')
+                quote = Quote(symbol=ticker, source=settings.vnstock_quote_sources[-1])
                 df = quote.history(length='3M', interval='1D')
                 if df is not None and not df.empty:
                     df = df.sort_values(by='time', ascending=True)
@@ -342,7 +363,7 @@ class VNStockTerminalApp:
 
             technical_context = {}
             try:
-                quote = Quote(symbol=ticker, source='KBS')
+                quote = Quote(symbol=ticker, source=settings.vnstock_quote_sources[-1])
                 df = quote.history(length='6M', interval='1D')
                 if df is not None and not df.empty:
                     df = df.sort_values(by='time', ascending=True)
@@ -454,7 +475,7 @@ class VNStockTerminalApp:
             }
         @self.app.get("/api/account/balance")
         async def get_balance():
-            return {"balance": int(os.getenv("PAPER_ACCOUNT_BALANCE", "0"))}
+            return {"balance": settings.paper_account_balance}
 
         @self.app.get("/api/account/positions")
         async def get_positions(db: Session = Depends(get_session)):
@@ -529,14 +550,14 @@ class VNStockTerminalApp:
                 "running": True,
                 "mode": "LIVE_SIMULATION",
                 "strategy_label": "Multi-Strategy AI Hunter",
-                "baseline_capital": int(os.getenv("PAPER_ACCOUNT_BALANCE", "0")),
+                "baseline_capital": settings.paper_account_balance,
                 "market_data_source": "DNSE" if dnse_market.configured else "vnstock fallback",
                 "real_order_execution": False,
             }
 
         @self.app.post("/api/bot/demo-scan")
         async def run_demo_scan(db: Session = Depends(get_session)):
-            tickers = ["FPT", "HPG", "SSI", "VCI", "VND", "VCB", "MBB", "TCB", "ACB", "MWG", "PNJ", "MSN"]
+            tickers = settings.scan_symbols
             trader = QuantTrader(db)
             await trader.scan_and_trade(tickers, manager)
             return {
@@ -563,7 +584,7 @@ class VNStockTerminalApp:
         async def get_trading_signals(ticker: str):
             ticker = ticker.upper()
             try:
-                q = Quote(symbol=ticker, source='KBS')
+                q = Quote(symbol=ticker, source=settings.vnstock_quote_sources[-1])
                 df = q.history(length='3M', interval='1D')
                 if df is None or df.empty or len(df) < 20:
                     raise ValueError("Insufficient signal data")
@@ -651,7 +672,7 @@ class VNStockTerminalApp:
             ticker = ticker.upper()
             try:
                 # Lấy dữ liệu 1 năm để tính toán các đường MA dài hạn
-                q = Quote(symbol=ticker, source='KBS')
+                q = Quote(symbol=ticker, source=settings.vnstock_quote_sources[-1])
                 df = q.history(length='1Y', interval='1D')
                 if df is None or df.empty or len(df) < 50:
                     raise Exception("Insufficient data")
@@ -820,8 +841,8 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "main:app",
-        host="0.0.0.0",
-        port=8001,
+        host=settings.api_host,
+        port=settings.api_port,
         reload=True,
         reload_excludes=["venv/*", "__pycache__/*", "*.log"],
     )

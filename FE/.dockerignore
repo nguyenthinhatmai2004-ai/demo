@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.vite/
+*.log
+.env
+.env.local
+run.*.log
+vite*.log
+frontend.log
+codex.frontend.*.log
+smoke-vite.*.log

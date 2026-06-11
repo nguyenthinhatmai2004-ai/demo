@@ -39,8 +39,7 @@ import {
   getCatalystBadges
 } from '../utils/stockScoring';
 import { generateMacroVerdict, generateRiskWarning, generateStockThesis } from '../utils/aiVerdict';
-
-const API_BASE = 'http://127.0.0.1:8011/api';
+import { API_BASE } from '../api/client';
 
 interface StrategicDashboardData {
   coreMacroIndicators: MacroIndicator[];
@@ -509,7 +508,7 @@ export const StrategicAlphaBoard: React.FC<{ onSelectStock: (stock: StrategicSto
     };
 
     return scored.sort((a, b) => valueForSort(b) - valueForSort(a));
-  }, [query, sector, setup, sortBy]);
+  }, [query, sector, setup, sortBy, strategicStocks]);
 
   const exportCsv = () => {
     const headers = ['Rank', 'Ticker', 'Company', 'Sector', 'Total Alpha', 'CANSLIM', 'SEPA', 'Macro Fit', 'AI Verdict'];
@@ -683,7 +682,7 @@ export const AIStrategicAnalystPanel: React.FC<{ selectedStock: StrategicStock |
           <button onClick={() => onSelectStock(stock)} className="text-xs font-bold text-cyan-300 hover:text-white">Ask AI About This Stock</button>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          {getCatalystBadges(stock.ticker, stock.sector).map((badge) => <CatalystBadge key={badge} label={badge} />)}
+          {getCatalystBadges(stock).map((badge) => <CatalystBadge key={badge} label={badge} />)}
         </div>
         <ul className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-slate-300">
           {generateStockThesis(stock).map((line) => <li key={line} className="rounded-lg bg-slate-950/60 p-3">{line}</li>)}
@@ -720,7 +719,7 @@ export const StockDetailDrawer: React.FC<{ stock: StrategicStock | null; onClose
           </ul>
         </div>
         <div className="mt-6 flex flex-wrap gap-2">
-          {getCatalystBadges(stock.ticker, stock.sector).map((badge) => <CatalystBadge key={badge} label={badge} />)}
+          {getCatalystBadges(stock).map((badge) => <CatalystBadge key={badge} label={badge} />)}
         </div>
         <p className="mt-6 text-[11px] text-slate-500 leading-relaxed">{DISCLAIMER}</p>
       </aside>

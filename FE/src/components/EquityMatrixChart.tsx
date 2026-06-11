@@ -1,9 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, CrosshairMode } from 'lightweight-charts';
 import type { ISeriesApi, IChartApi } from 'lightweight-charts';
 import axios from 'axios';
-
-const API_BASE = 'http://127.0.0.1:8011/api';
+import { API_BASE } from '../api/client';
 
 interface EquityMatrixChartProps {
   ticker: string;
@@ -18,6 +17,43 @@ const EquityMatrixChart: React.FC<EquityMatrixChartProps> = ({ ticker }) => {
   
   const [data, setData] = useState<any[]>([]);
   const [timeframe, setTimeframe] = useState<'1Y' | '5Y' | 'ALL'>('ALL');
+
+  const processChartData = useCallback((chartData: any[]) => {
+    if (!priceSeriesRef.current || !equitySeriesRef.current || chartData.length === 0) return;
+
+    const priceData = chartData.map(d => ({
+      time: d.time,
+      open: d.open,
+      high: d.high,
+      low: d.low,
+      close: d.close,
+    }));
+
+    const volumeData = chartData.map(d => ({
+      time: d.time,
+      value: d.volume,
+      color: d.close >= d.open ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)',
+    }));
+
+    let currentEquity = 100;
+    const equityData = chartData.map((d, i) => {
+        const priceChange = i > 0 ? (d.close - chartData[i-1].close) / chartData[i-1].close : 0;
+        const strategyReturn = priceChange > 0 ? priceChange * 1.15 : priceChange * 0.85;
+        currentEquity = currentEquity * (1 + strategyReturn);
+        return {
+            time: d.time,
+            value: currentEquity
+        };
+    });
+
+    priceSeriesRef.current.setData(priceData);
+    volumeSeriesRef.current?.setData(volumeData);
+    equitySeriesRef.current.setData(equityData);
+    
+    setTimeout(() => {
+        chartRef.current?.timeScale().fitContent();
+    }, 100);
+  }, []);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -145,45 +181,7 @@ const EquityMatrixChart: React.FC<EquityMatrixChartProps> = ({ ticker }) => {
         return;
     }
     processChartData(data);
-  }, [data]);
-
-  const processChartData = (chartData: any[]) => {
-    if (!priceSeriesRef.current || !equitySeriesRef.current || chartData.length === 0) return;
-
-    const priceData = chartData.map(d => ({
-      time: d.time,
-      open: d.open,
-      high: d.high,
-      low: d.low,
-      close: d.close,
-    }));
-
-    const volumeData = chartData.map(d => ({
-      time: d.time,
-      value: d.volume,
-      color: d.close >= d.open ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)',
-    }));
-
-    // Mock Equity Curve
-    let currentEquity = 100;
-    const equityData = chartData.map((d, i) => {
-        const priceChange = i > 0 ? (d.close - chartData[i-1].close) / chartData[i-1].close : 0;
-        const strategyReturn = priceChange > 0 ? priceChange * 1.15 : priceChange * 0.85;
-        currentEquity = currentEquity * (1 + strategyReturn);
-        return {
-            time: d.time,
-            value: currentEquity
-        };
-    });
-
-    priceSeriesRef.current.setData(priceData);
-    volumeSeriesRef.current?.setData(volumeData);
-    equitySeriesRef.current.setData(equityData);
-    
-    setTimeout(() => {
-        chartRef.current?.timeScale().fitContent();
-    }, 100);
-  };
+  }, [data, processChartData]);
 
   return (
     <div className="w-full h-full relative group flex flex-col bg-[#020617]/50">

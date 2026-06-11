@@ -7,12 +7,15 @@ from typing import Dict, List, Optional
 import pandas as pd
 from vnstock import Finance, Quote
 
+from config import settings
+
 logger = logging.getLogger("LiveDashboard")
 
 
 SYMBOL_META: Dict[str, Dict[str, str]] = {
     "FPT": {"company": "FPT Corp", "exchange": "HOSE", "sector": "Công nghệ"},
     "HPG": {"company": "Hòa Phát", "exchange": "HOSE", "sector": "Thép / vật liệu"},
+    "DGC": {"company": "Đức Giang Chemicals", "exchange": "HOSE", "sector": "Hóa chất"},
     "SSI": {"company": "SSI Securities", "exchange": "HOSE", "sector": "Chứng khoán"},
     "VCI": {"company": "Vietcap", "exchange": "HOSE", "sector": "Chứng khoán"},
     "VND": {"company": "VNDirect", "exchange": "HOSE", "sector": "Chứng khoán"},
@@ -23,15 +26,111 @@ SYMBOL_META: Dict[str, Dict[str, str]] = {
     "MWG": {"company": "Mobile World", "exchange": "HOSE", "sector": "Tiêu dùng"},
     "PNJ": {"company": "PNJ", "exchange": "HOSE", "sector": "Tiêu dùng"},
     "MSN": {"company": "Masan", "exchange": "HOSE", "sector": "Tiêu dùng"},
+    "VNM": {"company": "Vinamilk", "exchange": "HOSE", "sector": "Tiêu dùng"},
+    "VIC": {"company": "Vingroup", "exchange": "HOSE", "sector": "Tập đoàn / bất động sản"},
     "VHM": {"company": "Vinhomes", "exchange": "HOSE", "sector": "Bất động sản"},
     "KDH": {"company": "Khang Điền", "exchange": "HOSE", "sector": "Bất động sản"},
     "NLG": {"company": "Nam Long", "exchange": "HOSE", "sector": "Bất động sản"},
     "CTD": {"company": "Coteccons", "exchange": "HOSE", "sector": "Xây dựng / đầu tư công"},
     "HHV": {"company": "Đèo Cả", "exchange": "HOSE", "sector": "Hạ tầng"},
     "VCG": {"company": "Vinaconex", "exchange": "HNX", "sector": "Xây dựng / đầu tư công"},
+    "CII": {"company": "Hạ tầng kỹ thuật TP.HCM", "exchange": "HOSE", "sector": "Hạ tầng / Bất động sản"},
 }
 
 DEFAULT_UNIVERSE = list(SYMBOL_META.keys())
+
+
+TICKER_CATALYSTS: Dict[str, List[Dict[str, str]]] = {
+    "FPT": [
+        {"title": "AI Factory và hợp đồng công nghệ quốc tế", "detail": "Backlog chuyển đổi số, AI và thị trường Nhật/Mỹ là biến số cần theo dõi riêng cho FPT.", "impact": "Cao", "timeline": "2-4 quý tới"},
+        {"title": "Viễn thông và giáo dục giữ nền dòng tiền", "detail": "Dòng tiền lặp lại giúp giảm biến động lợi nhuận khi mảng dịch vụ CNTT toàn cầu chậm lại.", "impact": "Trung bình", "timeline": "Liên tục"},
+    ],
+    "HPG": [
+        {"title": "Dung Quất 2 ramp-up", "detail": "Sản lượng HRC mới và tỷ lệ vận hành nhà máy là catalyst lợi nhuận riêng của HPG.", "impact": "Cao", "timeline": "2025-2026"},
+        {"title": "Spread thép và tái tích trữ", "detail": "Biên lợi nhuận phục hồi nếu giá bán thép vượt tốc độ tăng quặng sắt/than luyện cốc.", "impact": "Cao", "timeline": "Theo chu kỳ"},
+    ],
+    "DGC": [
+        {"title": "Chu kỳ giá phốt pho vàng", "detail": "Biên lợi nhuận DGC nhạy với giá phốt pho, xuất khẩu và nhu cầu hóa chất công nghiệp.", "impact": "Cao", "timeline": "Theo quý"},
+        {"title": "Dự án hóa chất mới", "detail": "Tiến độ pháp lý, capex và chạy thử dự án mới quyết định mở rộng công suất dài hạn.", "impact": "Trung bình", "timeline": "2025-2026"},
+    ],
+    "SSI": [
+        {"title": "Thanh khoản thị trường và nâng hạng", "detail": "Doanh thu môi giới, cho vay margin và tự doanh của SSI hưởng lợi khi GTGD tăng.", "impact": "Cao", "timeline": "Theo thị trường"},
+        {"title": "Deal ECM/IB quay lại", "detail": "Pipeline phát hành, niêm yết và tư vấn vốn có thể bổ sung lợi nhuận ngoài môi giới.", "impact": "Trung bình", "timeline": "2-4 quý tới"},
+    ],
+    "VCI": [
+        {"title": "Pipeline ngân hàng đầu tư", "detail": "VCI có đòn bẩy cao với các thương vụ ECM/M&A khi điều kiện vốn thuận lợi hơn.", "impact": "Cao", "timeline": "2-4 quý tới"},
+        {"title": "Tự doanh và brokerage hồi phục", "detail": "Danh mục tự doanh và thị phần môi giới cần xác nhận bằng thanh khoản toàn thị trường.", "impact": "Trung bình", "timeline": "Theo thị trường"},
+    ],
+    "VND": [
+        {"title": "Margin và thị phần môi giới", "detail": "VND nhạy với tăng trưởng dư nợ margin và sự phục hồi của nhà đầu tư cá nhân.", "impact": "Cao", "timeline": "Theo thị trường"},
+        {"title": "Tái định vị sau giai đoạn rủi ro vận hành", "detail": "Niềm tin khách hàng và ổn định hệ thống là điều kiện để catalyst thị phần phát huy.", "impact": "Trung bình", "timeline": "2-3 quý tới"},
+    ],
+    "VCB": [
+        {"title": "Chất lượng tài sản và CASA", "detail": "VCB có catalyst từ chi phí vốn thấp, nợ xấu kiểm soát và khả năng mở rộng NIM chọn lọc.", "impact": "Cao", "timeline": "2-4 quý tới"},
+        {"title": "Tăng vốn và room tín dụng", "detail": "Thông tin tăng vốn hoặc hạn mức tín dụng mới có thể hỗ trợ định giá premium.", "impact": "Trung bình", "timeline": "Theo chính sách"},
+    ],
+    "MBB": [
+        {"title": "Hệ sinh thái số và CASA", "detail": "Tăng trưởng khách hàng số, phí dịch vụ và CASA là catalyst riêng của MBB.", "impact": "Cao", "timeline": "2-4 quý tới"},
+        {"title": "Tín dụng bán lẻ/quốc phòng ổn định", "detail": "Chất lượng tài sản cần được xác nhận khi tín dụng hệ thống tăng lại.", "impact": "Trung bình", "timeline": "Theo quý"},
+    ],
+    "TCB": [
+        {"title": "CASA phục hồi", "detail": "TCB nhạy với CASA, chi phí vốn và nhu cầu tín dụng của hệ sinh thái khách hàng lớn.", "impact": "Cao", "timeline": "2-4 quý tới"},
+        {"title": "Trái phiếu và bất động sản giảm áp lực", "detail": "Rủi ro tài sản liên quan BĐS giảm sẽ giúp P/B được tái định giá.", "impact": "Trung bình", "timeline": "Theo quý"},
+    ],
+    "ACB": [
+        {"title": "Bán lẻ chất lượng cao", "detail": "ACB có catalyst từ tăng trưởng tín dụng bán lẻ thận trọng và nợ xấu thấp.", "impact": "Trung bình", "timeline": "2-4 quý tới"},
+        {"title": "Cổ tức tiền mặt/cổ phiếu", "detail": "Chính sách phân phối lợi nhuận đều có thể hỗ trợ khẩu vị phòng thủ.", "impact": "Trung bình", "timeline": "Theo ĐHCĐ"},
+    ],
+    "MWG": [
+        {"title": "Bách Hóa Xanh hòa vốn và mở rộng", "detail": "Biên EBITDA, doanh thu/cửa hàng và tốc độ mở mới BHX là catalyst riêng của MWG.", "impact": "Cao", "timeline": "2-4 quý tới"},
+        {"title": "Điện máy/điện thoại hồi phục", "detail": "Chu kỳ thay thế thiết bị và sức mua tiêu dùng quyết định đòn bẩy doanh thu.", "impact": "Trung bình", "timeline": "Theo mùa vụ"},
+    ],
+    "PNJ": [
+        {"title": "Sức mua trang sức và mở cửa hàng", "detail": "SSSG, biên gộp bán lẻ và mở rộng mạng lưới là catalyst cần theo dõi riêng cho PNJ.", "impact": "Cao", "timeline": "Theo quý"},
+        {"title": "Giá vàng ổn định", "detail": "Chênh lệch giá vàng bớt biến động giúp nhu cầu trang sức rõ hơn nhu cầu đầu cơ.", "impact": "Trung bình", "timeline": "Theo thị trường"},
+    ],
+    "MSN": [
+        {"title": "WinCommerce cải thiện biên", "detail": "Mở rộng cửa hàng có chọn lọc và cải thiện EBITDA WCM là catalyst chính của MSN.", "impact": "Cao", "timeline": "2-4 quý tới"},
+        {"title": "Giảm đòn bẩy và tái cấu trúc danh mục", "detail": "Thoái vốn, giảm nợ hoặc tối ưu hàng tiêu dùng có thể mở khóa định giá.", "impact": "Trung bình", "timeline": "Theo sự kiện"},
+    ],
+    "VNM": [
+        {"title": "Biên sữa phục hồi", "detail": "Giá nguyên liệu sữa bột, mix sản phẩm và kiểm soát chi phí quyết định biên lợi nhuận VNM.", "impact": "Trung bình", "timeline": "Theo quý"},
+        {"title": "Xuất khẩu và thị phần nội địa", "detail": "Tăng trưởng kênh xuất khẩu hoặc lấy lại thị phần giúp câu chuyện tăng trưởng bớt phòng thủ.", "impact": "Trung bình", "timeline": "2-4 quý tới"},
+    ],
+    "VIC": [
+        {"title": "VinFast và tiến độ gọi vốn", "detail": "Dòng tiền, bàn giao xe và giao dịch huy động vốn của VinFast là catalyst riêng của VIC.", "impact": "Cao", "timeline": "Theo sự kiện"},
+        {"title": "Bàn giao bất động sản và dịch vụ", "detail": "Tiến độ dự án, doanh thu tài chính và dòng tiền tập đoàn cần xác nhận theo quý.", "impact": "Trung bình", "timeline": "Theo quý"},
+    ],
+    "VHM": [
+        {"title": "Bàn giao đại dự án", "detail": "Tiến độ bàn giao Ocean Park/Smart City/Grand Park và dự án mới quyết định lợi nhuận VHM.", "impact": "Cao", "timeline": "Theo quý"},
+        {"title": "Pháp lý và presales", "detail": "Mở bán mới, hấp thụ sản phẩm và pháp lý dự án là điều kiện để định giá hồi phục.", "impact": "Cao", "timeline": "2-4 quý tới"},
+    ],
+    "KDH": [
+        {"title": "Mở bán dự án thấp tầng", "detail": "Tiến độ pháp lý và booking tại các dự án TP.HCM là catalyst riêng của KDH.", "impact": "Cao", "timeline": "Theo sự kiện"},
+        {"title": "Bảng cân đối lành mạnh", "detail": "Đòn bẩy thấp giúp KDH hưởng lợi khi lãi suất hỗ trợ BĐS chọn lọc.", "impact": "Trung bình", "timeline": "Liên tục"},
+    ],
+    "NLG": [
+        {"title": "Bàn giao Akari/Waterpoint", "detail": "Tiến độ bàn giao và ghi nhận lợi nhuận từ dự án trung cấp là catalyst riêng của NLG.", "impact": "Cao", "timeline": "Theo quý"},
+        {"title": "Presales phục hồi", "detail": "Tốc độ bán hàng mới cho thấy nhu cầu nhà ở thực có quay lại hay chưa.", "impact": "Trung bình", "timeline": "2-4 quý tới"},
+    ],
+    "CTD": [
+        {"title": "Backlog xây dựng mới", "detail": "Giá trị hợp đồng ký mới, đặc biệt dự án FDI/công nghiệp, là catalyst chính của CTD.", "impact": "Cao", "timeline": "2-4 quý tới"},
+        {"title": "Biên gộp hồi phục", "detail": "Khả năng kiểm soát chi phí và lựa chọn dự án quyết định chất lượng lợi nhuận.", "impact": "Trung bình", "timeline": "Theo quý"},
+    ],
+    "HHV": [
+        {"title": "Đầu tư công và PPP giao thông", "detail": "Khối lượng thi công cao tốc, BOT/PPP mới và giải ngân hạ tầng là catalyst riêng của HHV.", "impact": "Cao", "timeline": "2025-2026"},
+        {"title": "Lưu lượng thu phí", "detail": "Lưu lượng xe và điều chỉnh phí BOT hỗ trợ dòng tiền vận hành.", "impact": "Trung bình", "timeline": "Theo quý"},
+    ],
+    "VCG": [
+        {"title": "Backlog hạ tầng", "detail": "Tiến độ thi công sân bay, cao tốc và dự án công là catalyst riêng của VCG.", "impact": "Cao", "timeline": "2025-2026"},
+        {"title": "Bất động sản và thoái vốn", "detail": "Mở khóa quỹ đất hoặc thoái vốn tài sản có thể bổ sung lợi nhuận ngoài xây lắp.", "impact": "Trung bình", "timeline": "Theo sự kiện"},
+    ],
+    "CII": [
+        {"title": "Đấu giá đất Thủ Thiêm", "detail": "CII sở hữu quỹ đất lớn tại Thủ Thiêm; việc tái khởi động đấu giá đất tại đây là catalyst cực mạnh cho định giá tài sản.", "impact": "Rất cao", "timeline": "2-4 quý tới"},
+        {"title": "Dòng tiền từ các dự án BOT", "detail": "Các dự án như Trung Lương - Mỹ Thuận và Xa lộ Hà Nội đi vào vận hành ổn định giúp cải thiện dòng tiền hoạt động.", "impact": "Cao", "timeline": "Liên tục"},
+        {"title": "Tái cấu trúc nợ và trái phiếu", "detail": "Việc mua lại trái phiếu trước hạn và giảm áp lực nợ vay giúp tối ưu chi phí tài chính.", "impact": "Trung bình", "timeline": "2-3 quý tới"},
+    ],
+}
 
 
 def _number(value, default: float = 0.0) -> float:
@@ -51,7 +150,7 @@ def _vnd(value: float) -> int:
 @lru_cache(maxsize=128)
 def fetch_history_frame(ticker: str, length: str = "1Y") -> pd.DataFrame:
     ticker = ticker.upper().strip()
-    for source in ("VCI", "KBS"):
+    for source in settings.vnstock_quote_sources:
         try:
             quote = Quote(symbol=ticker, source=source)
             df = quote.history(length=length, interval="1D")
@@ -95,7 +194,88 @@ def _quality_from_growth(growth: float) -> str:
     return "Chất lượng thấp"
 
 
-def build_quant_stock(ticker: str) -> Optional[Dict]:
+def _sector_fallback_catalysts(ticker: str, sector: str) -> List[Dict[str, str]]:
+    if "Công nghệ" in sector:
+        return [
+            {"title": "Hợp đồng chuyển đổi số", "detail": f"{ticker} cần xác nhận tăng trưởng backlog và doanh thu dịch vụ công nghệ.", "impact": "Trung bình", "timeline": "2-4 quý tới"},
+            {"title": "AI và cloud", "detail": "Nhu cầu AI/cloud có thể hỗ trợ định giá nếu chuyển hóa thành doanh thu thực.", "impact": "Trung bình", "timeline": "Từ 2026"},
+        ]
+    if "Chứng khoán" in sector:
+        return [
+            {"title": "Thanh khoản thị trường", "detail": f"{ticker} nhạy với giá trị giao dịch, dư nợ margin và khẩu vị risk-on.", "impact": "Cao", "timeline": "Theo thị trường"},
+            {"title": "Kỳ vọng nâng hạng", "detail": "Dòng tiền ngoại và sản phẩm mới có thể hỗ trợ nhóm chứng khoán nếu tiến độ nâng hạng rõ hơn.", "impact": "Trung bình", "timeline": "Theo sự kiện"},
+        ]
+    if "Ngân hàng" in sector:
+        return [
+            {"title": "Room tín dụng và NIM", "detail": f"{ticker} cần xác nhận tăng trưởng tín dụng, CASA và chi phí vốn trong các quý tới.", "impact": "Trung bình", "timeline": "Theo quý"},
+            {"title": "Chất lượng tài sản", "detail": "Nợ xấu và chi phí dự phòng giảm sẽ là điều kiện để định giá ngân hàng cải thiện.", "impact": "Cao", "timeline": "2-4 quý tới"},
+        ]
+    if "Bất động sản" in sector:
+        return [
+            {"title": "Pháp lý dự án", "detail": f"{ticker} cần catalyst từ mở bán, bàn giao hoặc tháo gỡ pháp lý dự án cụ thể.", "impact": "Cao", "timeline": "Theo sự kiện"},
+            {"title": "Lãi suất và hấp thụ", "detail": "Mặt bằng lãi suất thấp hơn chỉ có ý nghĩa khi presales và dòng tiền khách hàng cải thiện.", "impact": "Trung bình", "timeline": "2-4 quý tới"},
+        ]
+    if any(key in sector for key in ("Thép", "vật liệu", "Hóa chất")):
+        return [
+            {"title": "Chu kỳ giá hàng hóa", "detail": f"{ticker} nhạy với spread sản phẩm, chi phí đầu vào và nhu cầu xuất khẩu.", "impact": "Cao", "timeline": "Theo quý"},
+            {"title": "Đầu tư công / công nghiệp", "detail": "Nhu cầu hạ tầng và sản xuất công nghiệp là biến số hỗ trợ sản lượng.", "impact": "Trung bình", "timeline": "2-4 quý tới"},
+        ]
+    if any(key in sector for key in ("Tiêu dùng", "bán lẻ")):
+        return [
+            {"title": "Sức mua nội địa", "detail": f"{ticker} cần xác nhận doanh thu cùng cửa hàng, biên gộp và kiểm soát chi phí.", "impact": "Trung bình", "timeline": "Theo quý"},
+            {"title": "Tái cấu trúc vận hành", "detail": "Cải thiện hiệu quả cửa hàng/kênh phân phối sẽ là catalyst lợi nhuận rõ hơn giá trị vĩ mô chung.", "impact": "Trung bình", "timeline": "2-4 quý tới"},
+        ]
+    return [
+        {"title": f"KQKD riêng của {ticker}", "detail": "Theo dõi tăng trưởng doanh thu, lợi nhuận và biên lợi nhuận từ báo cáo tài chính mới nhất.", "impact": "Trung bình", "timeline": "Quý tới"},
+        {"title": f"Xác nhận kỹ thuật {ticker}", "detail": "Giá vượt pivot với thanh khoản trên trung bình 20 phiên sẽ cải thiện xác suất setup.", "impact": "Trung bình", "timeline": "Theo thị trường"},
+    ]
+
+
+def ticker_catalysts(ticker: str, sector: str = "", quote: Optional[Dict] = None) -> List[Dict[str, str]]:
+    ticker = ticker.upper().strip()
+    sector = sector or SYMBOL_META.get(ticker, {}).get("sector", "")
+    catalysts = [item.copy() for item in TICKER_CATALYSTS.get(ticker, _sector_fallback_catalysts(ticker, sector))]
+
+    if quote:
+        volume_ratio = round(quote["volume"] / max(quote["avgVolume20"], 1), 2)
+        if quote["close"] >= quote["pivot"] * 0.97 and volume_ratio >= 1.1:
+            catalysts.append({
+                "title": f"Breakout gần pivot {quote['pivot']:,}",
+                "detail": f"Giá đang sát pivot với volume {volume_ratio}x trung bình 20 phiên, phù hợp để kiểm tra xác nhận dòng tiền.",
+                "impact": "Trung bình",
+                "timeline": "Ngắn hạn",
+            })
+        elif volume_ratio >= 1.3:
+            catalysts.append({
+                "title": "Thanh khoản tăng bất thường",
+                "detail": f"Volume đạt {volume_ratio}x trung bình 20 phiên, cần đối chiếu với tin riêng của {ticker}.",
+                "impact": "Trung bình",
+                "timeline": "Ngắn hạn",
+            })
+
+    return catalysts[:4]
+
+
+def catalyst_badges_for_ticker(ticker: str, sector: str = "", quote: Optional[Dict] = None) -> List[str]:
+    return [item["title"] for item in ticker_catalysts(ticker, sector, quote)][:4]
+
+
+def _catalyst_score_from_stock(stock: Dict) -> int:
+    score = 55
+    if stock["ticker"] in TICKER_CATALYSTS:
+        score += 10
+    if stock["changePct"] > 0:
+        score += min(10, int(stock["changePct"] * 3))
+    if stock["volume"] > stock["avgVolume20"]:
+        score += min(10, int((stock["volume"] / max(stock["avgVolume20"], 1) - 1) * 12))
+    if stock["close"] >= stock["pivot"] * 0.97:
+        score += 8
+    if stock["earnings"]["profitGrowthYoY"] >= 15:
+        score += 7
+    return min(95, max(35, score))
+
+
+def _legacy_incomplete_build_quant_stock(ticker: str) -> Optional[Dict]:
     ticker = ticker.upper().strip()
     df = fetch_history_frame(ticker)
     if df.empty or len(df) < 50:
@@ -171,7 +351,7 @@ def _row_value(df: pd.DataFrame, item_id: str, period_col: Optional[str] = None,
 def fetch_financial_frame(ticker: str, statement: str) -> pd.DataFrame:
     ticker = ticker.upper().strip()
     try:
-        finance = Finance(symbol=ticker, source="VCI")
+        finance = Finance(symbol=ticker, source=settings.vnstock_finance_source)
         if statement == "ratio":
             return finance.ratio(period="year", lang="en")
         if statement == "income":
@@ -277,7 +457,7 @@ def get_live_ratios(ticker: str) -> Dict:
     margin = (_row_value(ratios, "net_margin", latest_col) or _row_value(ratios, "gross_margin", latest_col)) * 100
     debt_equity = _row_value(ratios, "debt_to_equity", latest_col) or _row_value(ratios, "debtPerEquity", latest_col)
     eps = round((quote["close"] / pe), 0) if quote and pe else 0
-    source = "vnstock Finance.ratio(source=VCI)"
+    source = f"vnstock Finance.ratio(source={settings.vnstock_finance_source})"
 
     if not any([pe, pb, roe, margin, debt_equity, eps]):
         model = RESEARCH_MODELS.get(ticker, {})
@@ -481,6 +661,7 @@ def get_strategic_dashboard() -> Dict:
         scores = _score_from_stock(stock)
         close = stock["close"]
         stop = round(close * 0.92)
+        catalysts = catalyst_badges_for_ticker(stock["ticker"], stock["sector"], stock)
         strategic.append({
             "ticker": stock["ticker"],
             "company": stock["company"],
@@ -496,7 +677,8 @@ def get_strategic_dashboard() -> Dict:
             "inflationSensitivity": "Thấp" if "Công nghệ" in stock["sector"] else "Trung bình",
             "canslim": scores["canslim"],
             "sepa": scores["sepa"],
-            "catalystScore": 70 if stock["changePct"] >= 0 else 45,
+            "catalystScore": _catalyst_score_from_stock(stock),
+            "catalysts": catalysts,
             "relativeStrengthScore": stock["relativeStrengthVNIndex"],
             "riskRewardScore": 75,
             "setupStatus": scores["sepa"]["status"],
@@ -539,7 +721,7 @@ def get_strategic_dashboard() -> Dict:
 
 def data_sources() -> List[Dict[str, str]]:
     return [
-        {"name": "vnstock", "type": "library", "usage": "Backend market OHLCV adapter using VCI/KBS sources"},
+        {"name": "vnstock", "type": "library", "usage": f"Backend market OHLCV adapter using {', '.join(settings.vnstock_quote_sources)} sources"},
         {"name": "SSI FastConnect", "type": "official/paid", "usage": "Recommended broker-grade realtime and trading API when credentials are available"},
         {"name": "Vietstock DataFeed", "type": "commercial", "usage": "Recommended licensed datafeed for production market/fundamental data"},
         {"name": "FiinPro / FiinQuant", "type": "commercial", "usage": "Recommended institutional financial, ownership and macro data"},
@@ -637,7 +819,7 @@ RESEARCH_MODELS: Dict[str, Dict] = {
 }
 
 
-def get_research_model(ticker: str) -> Dict:
+def _legacy_static_research_model(ticker: str) -> Dict:
     ticker = ticker.upper().strip()
     quote = build_quant_stock(ticker)
     model = RESEARCH_MODELS.get(ticker, {}).copy()
@@ -665,10 +847,7 @@ def get_research_model(ticker: str) -> Dict:
                 "Dữ liệu giá và khối lượng được lấy trực tiếp từ backend; dự báo cơ bản chi tiết cần thêm nguồn dữ liệu có bản quyền.",
                 "Định giá hiện được đặt thận trọng vì consensus và hướng dẫn doanh nghiệp chưa được tích hợp đầy đủ.",
             ],
-            "catalysts": [
-                {"title": "Kỳ công bố KQKD tới", "detail": "Xác nhận tăng trưởng doanh thu, xu hướng biên lợi nhuận và định hướng ban lãnh đạo.", "impact": "Trung bình", "timeline": "Quý tới"},
-                {"title": "Xác nhận khối lượng", "detail": "Một nhịp breakout với khối lượng trên trung bình sẽ cải thiện điểm mua và tỷ lệ lợi nhuận/rủi ro.", "impact": "Trung bình", "timeline": "Theo thị trường"},
-            ],
+            "catalysts": ticker_catalysts(ticker, meta["sector"], quote),
             "risks": [
                 {"title": "Độ phủ dữ liệu", "impact": "Trung bình", "content": "Dữ liệu cơ bản còn giới hạn nếu chưa kết nối nguồn dữ liệu trả phí có bản quyền."},
             ],
@@ -780,10 +959,7 @@ def get_research_model(ticker: str) -> Dict:
             f"ROE {roe:.1f}%, biên lợi nhuận {margin:.1f}% và P/E {pe:.1f}x là đầu vào chính của mô hình.",
             f"Điểm kỹ thuật hiện tại {technical_score:.0f}/100; cần xác nhận bằng thanh khoản và KQKD mới nhất.",
         ],
-        "catalysts": [
-            {"title": "Kỳ công bố KQKD tới", "detail": "Theo dõi tăng trưởng doanh thu, lợi nhuận và biên lợi nhuận từ báo cáo tài chính qua vnstock/VCI.", "impact": "Trung bình", "timeline": "Quý tới"},
-            {"title": "Xác nhận khối lượng", "detail": "Nhịp vượt pivot với khối lượng trên trung bình 20 phiên sẽ cải thiện xác suất điểm mua.", "impact": "Trung bình", "timeline": "Theo thị trường"},
-        ],
+        "catalysts": fallback_model.get("catalysts") or ticker_catalysts(ticker, meta["sector"], quote),
         "risks": [
             {"title": "Rủi ro dữ liệu và định giá", "impact": "Trung bình", "content": "Mô hình dùng dữ liệu công khai qua vnstock/VCI; consensus từ nguồn trả phí chưa được tích hợp."},
             {"title": "Rủi ro kỹ thuật", "impact": "Trung bình", "content": "Cần cắt lỗ nếu giá phá vỡ hỗ trợ/MA quan trọng với thanh khoản cao."},

@@ -2,8 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType } from 'lightweight-charts';
 import type { ISeriesApi, IChartApi } from 'lightweight-charts';
 import axios from 'axios';
-
-const API_BASE = 'http://127.0.0.1:8011/api';
+import { API_BASE } from '../api/client';
 
 interface CustomChartProps {
   ticker: string;
@@ -12,7 +11,7 @@ interface CustomChartProps {
 const calculateEMA = (data: any[], period: number) => {
   if (data.length < period) return [];
   const k = 2 / (period + 1);
-  let emaData = [];
+  const emaData = [];
   let ema = data[0].close;
   
   for (let i = 0; i < data.length; i++) {
